@@ -1,0 +1,10 @@
+# Для тех, кто выкладывает через командную строку (npm i -g wrangler; wrangler login).
+# Вариант без командной строки описан в SETUP-cloudflare-ru.md.
+name = "comfortable-life"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "comfortable-life"
+database_id = "ВСТАВЬТЕ_ID_БАЗЫ"   # wrangler d1 create comfortable-life
