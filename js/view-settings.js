@@ -188,7 +188,13 @@
   function keyboardCard() {
     var on = CL.kbd.enabled();
     var sw = h('button', { type: 'button', class: 'switch', role: 'switch', 'aria-checked': on ? 'true' : 'false', 'aria-label': t('set.kbd'), onclick: function () { CL.kbd.set(!on); CL.app.render(); } }, h('span', { class: 'knob' }));
-    return h('section', { class: 'card c5' }, [h('h2', { text: t('set.kbd') }), h('div', { class: 'row static' }, [h('span', { class: 'row-main', text: t('set.kbdText') }), sw])]);
+    var rows = [h('div', { class: 'row static' }, [h('span', { class: 'row-main', text: t('set.kbdText') }), sw])];
+    if (CL.kbd.voiceSupported()) {
+      var von = CL.kbd.voiceEnabled();
+      var vs = h('button', { type: 'button', class: 'switch', role: 'switch', 'aria-checked': von ? 'true' : 'false', 'aria-label': t('set.voice'), onclick: function () { CL.kbd.setVoice(!von); CL.app.render(); } }, h('span', { class: 'knob' }));
+      rows.push(h('div', { class: 'row static' }, [h('span', { class: 'row-main' }, [h('b', { text: t('set.voice') }), h('small', { class: 'muted', text: t('set.voiceText') })]), vs]));
+    } else rows.push(h('p', { class: 'muted small', text: t('set.voiceNo') }));
+    return h('section', { class: 'card c5' }, [h('h2', { text: t('set.kbd') }), h('div', { class: 'rows' }, rows)]);
   }
 
   /* «Ещё»: разделы, которых нет на нижней панели */

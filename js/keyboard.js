@@ -22,7 +22,7 @@
   var HINTS = { go: 'kb.go', search: 'kb.search', send: 'kb.send', next: 'kb.next', done: 'kb.done', enter: 'kb.return' };
 
   var kb = null, keysBox = null, target = null, layout = null, layer = 'abc', shift = 'off', lastShift = 0, lastSpace = 0, hideTimer = null, repeat = null;
-  var active = {}, pop = null;
+  var active = {}, pop = null, shiftEl = null, micEl = null, liveEl = null, rec = null, listening = false;
 
   function meta() { return CL.store && CL.store.meta ? CL.store.meta() : {}; }
   function coarse() { try { return window.matchMedia('(pointer: coarse)').matches; } catch (e) { return false; } }
@@ -50,7 +50,16 @@
 
   /* ---------- вставка текста ---------- */
   function hasSel(el) { try { return typeof el.selectionStart === 'number'; } catch (e) { return false; } }
-  function fire(el) { el.dispatchEvent(new Event('input', { bubbles: true })); }
+  function fire(el) { follow(el); el.dispatchEvent(new Event('input', { bubbles: true })); }
+  /* строка идёт за текстом: у полей почты и пароля нет выделения, поэтому прокручиваем сами */
+  function follow(el) {
+    try {
+      var end = !hasSel(el) || el.selectionEnd >= el.value.length;
+      if (end) { el.scrollLeft = el.scrollWidth; if (el.tagName === 'TEXTAREA') el.scrollTop = el.scrollHeight; }
+    } catch (e) {}
+  }
+  /* тип поля для клавиатуры: пароль с кнопкой «показать» остаётся паролем */
+  function kindOf(el) { return (el.getAttribute('data-kbtype') || el.getAttribute('type') || 'text').toLowerCase(); }
   function put(el, str) {
     var s = hasSel(el) ? el.selectionStart : el.value.length, e = hasSel(el) ? el.selectionEnd : s;
     if (el.maxLength > 0 && el.value.length - (e - s) + str.length > el.maxLength) return;
@@ -71,7 +80,7 @@
   /* первая буква предложения — заглавная (не для почты и паролей) */
   function autoShift() {
     if (!target || layer !== 'abc' || shift === 'lock') return;
-    var type = (target.getAttribute('type') || 'text').toLowerCase();
+    var type = kindOf(target);
     if (target.tagName !== 'TEXTAREA' && type !== 'text' && type !== 'search') { shift = 'off'; return; }
     var b = before(target);
     shift = (!b.trim() || /[.!?]\s+$/.test(b) || /\n$/.test(b)) ? 'once' : 'off';
@@ -100,14 +109,30 @@
   /* буква или знак: набирается при отпускании, при нажатии над клавишей всплывает увеличенная копия */
   function charKey(ch) {
     var shown = showCase() ? ch.toUpperCase() : ch;
-    return mk({ label: shown, ch: shown, base: ch, alts: ALTS[ch], pop: true, up: function () {
-      put(target, shown);
+    var k = mk({ label: shown, ch: shown, base: ch, alts: ALTS[ch], pop: true, letter: true, down: function () {
+      put(target, k._o.ch); lastSpace = 0;
       if (shift === 'once') shift = 'off';
       if (shift === 'off') autoShift();
-      build();
+      refresh();
     } });
+    return k;
   }
-  function symKey(ch) { return mk({ label: ch, ch: ch, base: ch, alts: ALTS[ch], pop: true, up: function () { put(target, ch); } }); }
+  function symKey(ch) { return mk({ label: ch, ch: ch, base: ch, alts: ALTS[ch], pop: true, down: function () { put(target, ch); lastSpace = 0; } }); }
+
+  /* смена регистра без пересборки клавиш: только подписи */
+  function refresh() {
+    if (!keysBox) return;
+    var up = showCase();
+    Array.prototype.forEach.call(keysBox.querySelectorAll('.k'), function (el) {
+      var o = el._o; if (!o || !o.letter) return;
+      var c = up ? o.base.toUpperCase() : o.base;
+      if (o.ch !== c) { o.ch = c; el.textContent = c; }
+    });
+    if (shiftEl) {
+      shiftEl.innerHTML = shift === 'lock' ? SVG.lock : shift === 'once' ? SVG.shiftOn : SVG.shift;
+      shiftEl.classList.toggle('on', shift !== 'off');
+    }
+  }
 
   function hint() {
     if (!target) return 'enter';
@@ -118,11 +143,11 @@
 
   function build() {
     if (!keysBox) return;
-    keysBox.textContent = '';
+    keysBox.textContent = ''; shiftEl = null;
     var num = target && target.getAttribute('data-kb') === 'num';
-    var type = target ? (target.getAttribute('type') || '').toLowerCase() : '';
+    var type = target ? kindOf(target) : '';
     var t = CL.i18n.t;
-    var del = mk({ svg: SVG.del, cls: 'k-fn k-del', aria: t('kb.backspace'), down: function () { back(target); autoShift(); build(); }, repeat: true });
+    var del = mk({ svg: SVG.del, cls: 'k-fn k-del', aria: t('kb.backspace'), down: function () { back(target); autoShift(); refresh(); }, repeat: true });
 
     if (num) {
       ['123', '456', '789'].forEach(function (r) { keysBox.appendChild(row('num', r.split('').map(symKey))); });
@@ -138,8 +163,9 @@
       var sh = mk({ svg: shift === 'lock' ? SVG.lock : shift === 'once' ? SVG.shiftOn : SVG.shift, cls: 'k-fn k-wide' + (shift !== 'off' ? ' on' : ''), aria: t('kb.shift'), down: function () {
         var now = Date.now();
         shift = (shift === 'off') ? 'once' : (shift === 'once' && now - lastShift < 500) ? 'lock' : 'off';
-        lastShift = now; build();
+        lastShift = now; refresh();
       } });
+      shiftEl = sh;
       keysBox.appendChild(row('r3', [sh].concat(rows[2].split('').map(charKey), [del])));
     } else {
       var set = layer === 'num' ? NUM : SYM2;
@@ -153,13 +179,13 @@
     keysBox.appendChild(row('bottom', [
       mk({ label: layer === 'abc' ? '123' : (layout === 'ru' ? 'АБВ' : 'ABC'), cls: 'k-fn k-small k-mode', aria: t('kb.symbols'), down: function () { layer = layer === 'abc' ? 'num' : 'abc'; build(); } }),
       mk({ svg: SVG.globe, cls: 'k-fn k-globe', aria: t('kb.language') + ': ' + layout.toUpperCase(), down: function () { layout = layout === 'ru' ? 'en' : 'ru'; layer = 'abc'; autoShift(); build(); } }),
-      mk({ label: layer === 'abc' ? (layout === 'ru' ? 'пробел' : 'space') : '', cls: 'k-space', aria: t('kb.space'), up: function () {
+      mk({ label: layer === 'abc' ? (layout === 'ru' ? 'пробел' : 'space') : '', cls: 'k-space', aria: t('kb.space'), down: function () {
         var now = Date.now(), before1 = target ? before(target) : '';
         var plain = type !== 'email' && type !== 'password' && type !== 'url';
         /* два пробела подряд после слова дают точку и пробел, как на iPhone */
         if (plain && now - lastSpace < 450 && /[^\s.!?,:;]\s$/.test(before1) && !/\s\s$/.test(before1)) { back(target); put(target, '. '); lastSpace = 0; }
         else { put(target, ' '); lastSpace = now; }
-        autoShift(); build();
+        autoShift(); refresh();
       } }),
       mk({ label: t(HINTS[h]), cls: 'k-ret' + (blue ? ' k-go' : ' k-fn'), aria: t('kb.enter'), up: function () { enter(); } })
     ]));
@@ -168,7 +194,7 @@
   function enter(force) {
     if (!target) return;
     var h = hint();
-    if (target.tagName === 'TEXTAREA' && !force) { put(target, '\n'); autoShift(); build(); return; }
+    if (target.tagName === 'TEXTAREA' && !force) { put(target, '\n'); autoShift(); refresh(); return; }
     if (h === 'next') {
       var all = Array.prototype.filter.call((target.form || document).querySelectorAll('input, textarea'), eligible);
       var nx = all[all.indexOf(target) + 1];
@@ -206,30 +232,76 @@
     var st = { el: el, timer: null, alt: null };
     active[id] = st;
     el.classList.add('down');
-    if (o.down) { o.down(); if (o.repeat) { clearInterval(repeat); clearTimeout(repeat); repeat = setTimeout(function () { repeat = setInterval(function () { if (target) back(target); }, 70); }, 420); } return; }
     if (o.pop) showPop(el, null);
+    if (o.down) o.down();                      // знак вставляется сразу при касании: быстрый набор не теряет клавиши
+    if (o.repeat) { clearInterval(repeat); clearTimeout(repeat); repeat = setTimeout(function () { repeat = setInterval(function () { if (target) { back(target); } }, 70); }, 420); }
     if (o.alts && o.pop) st.timer = setTimeout(function () { st.alt = true; showPop(el, o.alts); }, 420);
   }
   function release(id, commit) {
     var st = active[id]; if (!st) return;
     delete active[id];
-    clearTimeout(st.timer); clearInterval(repeat); clearTimeout(repeat);
+    clearTimeout(st.timer);
     st.el.classList.remove('down');
     var o = st.el._o, chosen = null;
+    if (o.repeat) { clearInterval(repeat); clearTimeout(repeat); }
     if (st.alt && pop) { var on = pop.querySelector('.alt.on'); chosen = on && on._c; }
     closePop();
     if (!commit || !target) return;
-    if (st.alt && chosen != null) { put(target, chosen); if (shift === 'once') shift = 'off'; if (shift === 'off') autoShift(); build(); }
-    else if (o.up) o.up();
+    if (st.alt && chosen != null) {
+      if (chosen !== o.ch) { back(target); put(target, chosen); autoShift(); refresh(); }   // вместо уже вставленной буквы — выбранный вариант
+    } else if (o.up) o.up();
+  }
+
+  /* ---------- голосовой ввод (распознавание речи самого браузера) ---------- */
+  var MIC = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3"/></svg>';
+  function speechCtor() { return window.SpeechRecognition || window.webkitSpeechRecognition || null; }
+  function voiceOn() { return !!speechCtor() && meta().voice !== false; }
+  function setLive(txt) { if (liveEl) liveEl.textContent = txt || ''; }
+  function updateMic() { if (micEl) { micEl.classList.toggle('on', listening); micEl.setAttribute('aria-pressed', listening ? 'true' : 'false'); } if (!listening) setLive(''); }
+  function insertSpoken(txt) {
+    txt = String(txt || '').trim();
+    if (!txt || !target) return;
+    var b = before(target);
+    if (!b.trim() || /[.!?]\s*$/.test(b)) txt = txt.charAt(0).toUpperCase() + txt.slice(1);
+    put(target, (b && !/\s$/.test(b) ? ' ' : '') + txt);
+    autoShift(); refresh();
+  }
+  function stopVoice() {
+    var r = rec; rec = null; listening = false; updateMic();
+    if (r) { r.onresult = r.onerror = r.onend = null; try { r.stop(); } catch (e) {} }
+  }
+  function startVoice() {
+    var C = speechCtor(); if (!C || !target) return;
+    stopVoice();
+    var r = new C();
+    r.lang = layout === 'en' ? 'en-US' : 'ru-RU'; r.continuous = true; r.interimResults = true;
+    r.onresult = function (e) {
+      var interim = '';
+      for (var i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) insertSpoken(e.results[i][0].transcript); else interim += e.results[i][0].transcript;
+      }
+      setLive(interim);
+    };
+    r.onerror = function (e) {
+      listening = false; updateMic();
+      if (e && /not-allowed|service-not-allowed/.test(e.error) && CL.ui) CL.ui.toast(CL.i18n.t('kb.voiceDenied'));
+    };
+    r.onend = function () { listening = false; rec = null; updateMic(); };
+    rec = r;
+    try { r.start(); listening = true; } catch (e) { rec = null; }
+    updateMic();
   }
   function ensure() {
     if (kb) return;
     kb = document.createElement('div');
     kb.className = 'vkb'; kb.hidden = true; kb.setAttribute('role', 'group'); kb.setAttribute('aria-label', CL.i18n.t('kb.title'));
     var bar = document.createElement('div'); bar.className = 'vkb-bar';
+    micEl = document.createElement('div'); micEl.className = 'k vkb-mic'; micEl.setAttribute('role', 'button'); micEl.setAttribute('aria-label', CL.i18n.t('kb.voice')); micEl.innerHTML = MIC;
+    micEl._o = { down: function () { if (listening) stopVoice(); else startVoice(); } };
+    liveEl = document.createElement('div'); liveEl.className = 'vkb-live'; liveEl.setAttribute('aria-live', 'polite');
     var dn = document.createElement('div'); dn.className = 'vkb-done'; dn.setAttribute('role', 'button'); dn.textContent = CL.i18n.t('kb.done');
     dn._o = { cls: 'vkb-done', up: function () { if (target) target.blur(); hide(); } };
-    dn.classList.add('k'); bar.appendChild(dn);
+    dn.classList.add('k'); bar.appendChild(micEl); bar.appendChild(liveEl); bar.appendChild(dn);
     keysBox = document.createElement('div'); keysBox.className = 'vkb-keys';
     kb.appendChild(bar); kb.appendChild(keysBox);
 
@@ -258,7 +330,7 @@
     });
     function end(commit) { return function (e) { release(e.pointerId || 0, commit); }; }
     kb.addEventListener('pointerup', end(true));
-    kb.addEventListener('pointercancel', end(false));
+    kb.addEventListener('pointercancel', function (e) { var st = active[e.pointerId || 0]; release(e.pointerId || 0, !(st && st.alt)); });
     kb.addEventListener('mousedown', function (e) { e.preventDefault(); });
     kb.addEventListener('contextmenu', function (e) { e.preventDefault(); });
   }
@@ -278,6 +350,7 @@
     if (!num) layer = 'abc';
     shift = 'off'; autoShift();
     build();
+    micEl.style.display = voiceOn() ? '' : 'none';
     var hst = host();
     if (kb.parentNode !== hst) hst.appendChild(kb);
     kb.hidden = false;
@@ -291,7 +364,7 @@
   function hide() {
     clearTimeout(hideTimer);
     if (!kb) return;
-    closePop(); active = {};
+    closePop(); active = {}; stopVoice();
     kb.hidden = true; target = null;
     if (kb.parentNode !== document.body) document.body.appendChild(kb);
     document.body.classList.remove('kb-open');
@@ -324,7 +397,9 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 
   CL.kbd = {
-    enabled: enabled, hide: hide,
+    enabled: enabled, hide: hide, voiceSupported: function () { return !!speechCtor(); },
+    setVoice: function (on) { meta().voice = !!on; CL.store.saveMeta(); if (!on) stopVoice(); if (micEl) micEl.style.display = voiceOn() ? '' : 'none'; },
+    voiceEnabled: voiceOn,
     /* переключатель из Настроек: true / false */
     set: function (on) {
       meta().vkb = !!on; CL.store.saveMeta();

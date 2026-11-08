@@ -18,9 +18,12 @@
   function acct() { var s = st(); return s && s.sync && s.sync.token ? s.sync : null; }
   /* вошли и состоим в семье: только тогда данные синхронизируются */
   function cfg() { var a = acct(); return a && a.fid ? a : null; }
+  /* адрес сервера: то, что владелец вписал в config.js, главнее старого адреса, сохранённого в телефоне */
   function serverUrl() {
+    var c = window.CL_CONFIG && window.CL_CONFIG.serverUrl;
+    if (c) return c;
     var s = st(), u = s && s.sync && s.sync.url;
-    return u || (window.CL_CONFIG && window.CL_CONFIG.serverUrl) || '';
+    return u || '';
   }
 
   /* ---------- кодирование ---------- */
@@ -59,6 +62,34 @@
     }).then(function (r) { clearTimeout(to); return r.json(); }, function (e) { clearTimeout(to); throw e; }).then(function (r) {
       if (r && r.error === 'session' && acct()) { signedOutLocally(); }
       return r;
+    });
+  }
+  /* что именно не так, когда «нет связи»: сервер не отвечает, нет базы или нет таблиц */
+  function ping() {
+    var url = serverUrl(), ctl = window.AbortController ? new AbortController() : null;
+    var to = setTimeout(function () { if (ctl) ctl.abort(); }, 8000);
+    return fetch(url, { method: 'GET', signal: ctl ? ctl.signal : undefined }).then(function (r) { clearTimeout(to); return r.json(); }).then(function (d) { return d || {}; }, function () { clearTimeout(to); return null; });
+  }
+  function explain(e) {
+    var plain = !e || !(e.error || e.code);
+    if (!plain || !serverUrl()) return Promise.resolve(message(e));
+    var host = ''; try { host = new URL(serverUrl()).host; } catch (x) { host = serverUrl(); }
+    return ping().then(function (d) {
+      if (!d) return t('sync.diag.down', { h: host });
+      if (d.db === false) return t('sync.diag.nodb');
+      if (d.schema === false) return t('sync.diag.noschema');
+      return t('sync.diag.up');
+    });
+  }
+  /* проверка связи по кнопке: возвращает понятный текст */
+  function check() {
+    var host = ''; try { host = new URL(serverUrl()).host; } catch (x) { host = serverUrl() || ''; }
+    if (!serverUrl()) return Promise.resolve(t('sync.diag.down', { h: '—' }));
+    return ping().then(function (d) {
+      if (!d) return t('sync.diag.down', { h: host });
+      if (d.db === false) return t('sync.diag.nodb');
+      if (d.schema === false) return t('sync.diag.noschema');
+      return t('sync.diag.ok');
     });
   }
   /* запросы к данным семьи */
@@ -321,7 +352,7 @@
   });
 
   CL.sync = {
-    acct: acct, cfg: cfg, call: call, api: api, serverUrl: serverUrl, message: message, passHash: passHash,
+    acct: acct, cfg: cfg, call: call, ping: ping, check: check, explain: explain, api: api, serverUrl: serverUrl, message: message, passHash: passHash,
     attachFamily: attachFamily, detachFamily: detachFamily, signedOutLocally: signedOutLocally, overlay: overlay,
     start: start, stop: stop, run: run,
     status: function () { return status; },

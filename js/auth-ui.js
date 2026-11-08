@@ -8,7 +8,11 @@
   var mode = 'up';                       // up — регистрация, in — вход, code — ввод кода из письма, key — ключ восстановления
   var pending = { email: '', prof: null };
 
-  function show(err, e) { err.textContent = CL.sync.message(e); }
+  /* при «нет связи» дополнительно выясняем причину: адрес, привязка базы, таблицы */
+  function show(err, e) {
+    err.textContent = CL.sync.message(e);
+    if (CL.sync.explain) CL.sync.explain(e).then(function (m) { if (m && err.isConnected !== false) err.textContent = m; });
+  }
   function busy(btn, job) {
     btn.disabled = true;
     return job().then(function (r) { btn.disabled = false; return r; }, function (e) { btn.disabled = false; throw e; });
@@ -89,6 +93,9 @@
       h('button', { type: 'button', 'aria-pressed': mode === 'in' ? 'true' : 'false', onclick: function () { mode = 'in'; render(container, opts); } }, t('acc.signin'))
     ]);
     container.appendChild(seg);
+    var chk = h('p', { class: 'muted small' });
+    var chkBtn = h('button', { type: 'button', class: 'link', onclick: function () { chk.textContent = '…'; CL.sync.check().then(function (m) { chk.textContent = m; }); } }, t('sync.check'));
+    container.appendChild(h('div', { class: 'auth-check' }, [chkBtn, chk]));
 
     var email = h('input', { type: 'email', autocomplete: 'email', autocapitalize: 'off', spellcheck: 'false', required: true, value: pending.email });
     var pw = h('input', { type: 'password', autocomplete: mode === 'in' ? 'current-password' : 'new-password', required: true });

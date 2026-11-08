@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var CL = (window.CL = window.CL || {});
-  CL.version = '0.6.0';
+  CL.version = '0.6.1';
   CL.views = CL.views || {};
   CL.actions = CL.actions || {};
 
@@ -104,7 +104,26 @@
     if (val !== undefined) el.value = val;
     return el;
   }
+  /* поле пароля с кнопкой «показать» (глаз) */
+  var EYE = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+  var EYE_OFF = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 5.7A10.5 10.5 0 0 1 12 5.5c6.4 0 10 6.5 10 6.5a17 17 0 0 1-3.2 3.9M6.4 6.9A17 17 0 0 0 2 12s3.6 6.5 10 6.5c1.6 0 3-.4 4.3-1M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
+  function passWrap(input) {
+    var on = false;
+    var b = h('button', { type: 'button', class: 'pw-eye', 'aria-label': t('common.showPass'), 'aria-pressed': 'false', tabindex: '-1' });
+    b.innerHTML = EYE;
+    b.addEventListener('mousedown', function (e) { e.preventDefault(); });          // фокус остаётся в поле
+    b.addEventListener('click', function (e) {
+      e.preventDefault(); e.stopPropagation();
+      on = !on;
+      input.type = on ? 'text' : 'password';
+      b.innerHTML = on ? EYE_OFF : EYE;
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.setAttribute('aria-label', t(on ? 'common.hidePass' : 'common.showPass'));
+    });
+    return h('span', { class: 'pw-wrap' }, [input, b]);
+  }
   function field(label, control, hint) {
+    if (control && control.tagName === 'INPUT' && control.type === 'password') control = passWrap(control);
     return h('label', { class: 'field' }, [h('span', { class: 'field-l', text: label }), control, hint ? h('span', { class: 'field-h', text: hint }) : null]);
   }
   function select(options, value) {
@@ -266,6 +285,7 @@
   }
 
   CL.ui = {
+    passWrap: passWrap,
     t: t, h: h, icon: icon, leaf: leaf, field: field, select: select, btn: btn, iconBtn: iconBtn, head: head, empty: empty, cap: cap, sharedChip: sharedChip, normControl: normControl, shareField: shareField,
     fmt: fmt, weekdays: weekdays, toast: toast, modal: modal, confirm: confirmBox, ring: ring, bars: bars
   };

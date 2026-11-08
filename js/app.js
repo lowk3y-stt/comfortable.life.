@@ -95,7 +95,7 @@
         if (e2 && e2.code === 'wait') wait(e2.seconds); else err.textContent = t('lock.wrong');
         pin.focus();
       });
-    } }, [pin, err, open]);
+    } }, [U.passWrap(pin), err, open]);
     var forgot = h('button', { type: 'button', class: 'link', onclick: function () {
       U.confirm(t('set.resetAsk'), t('set.reset')).then(function (ok) { if (ok) S.reset().then(function () { applyLang(); CL.assistant.reset(); afterUnlock(); }); });
     } }, t('lock.forgot'));

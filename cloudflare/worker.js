@@ -48,7 +48,9 @@ export default {
     if (req.method === 'GET') {
       const p = url.searchParams;
       if (p.get('state') && (p.get('code') || p.get('error'))) return yaCallback(env, req, p);
-      return json({ ok: true, app: 'comfortable-life-server', v: 5, mail: mailOn(env) });
+      let schema = false;
+      if (env.DB) { try { await env.DB.prepare('SELECT 1 FROM acc LIMIT 1').first(); schema = true; } catch (e) { schema = false; } }
+      return json({ ok: true, app: 'comfortable-life-server', v: 5, mail: mailOn(env), db: !!env.DB, schema });
     }
     if (req.method !== 'POST') return json({ ok: false, error: 'bad' }, 405);
     try {

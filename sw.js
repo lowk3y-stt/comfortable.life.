@@ -1,10 +1,10 @@
 /* Comfortable life — работа без интернета.
    Файлы приложения кэшируются при первом открытии; шрифты Google сохраняются при первом удачном запросе.
    При выпуске новой версии измените VERSION — старый кэш удалится сам. */
-var VERSION = 'cl-app-0.6.0';
+var VERSION = 'cl-app-0.6.1';
 var SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
-  'js/i18n.js', 'js/store.js', 'js/ui.js', 'js/logic.js', 'js/e2e.js', 'js/sync.js', 'js/account.js', 'js/auth-ui.js', 'js/keyboard.js', 'js/yandex.js', 'config.js',
+  'js/i18n.js', 'js/store.js', 'js/ui.js', 'js/logic.js', 'js/e2e.js', 'js/sync.js', 'js/account.js', 'js/auth-ui.js', 'js/keyboard.js', 'js/pwd.js', 'js/yandex.js', 'config.js',
   'js/view-today.js', 'js/view-home.js', 'js/view-notes.js', 'js/view-calendar.js',
   'js/view-sport.js', 'js/view-health.js', 'js/view-family.js', 'js/view-settings.js',
   'js/assistant.js', 'js/app.js',
@@ -26,6 +26,14 @@ self.addEventListener('fetch', function (e) {
   var sameOrigin = url.origin === self.location.origin;
   var fonts = url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com';
   if (!sameOrigin && !fonts) return;
+  /* config.js и страница: сначала сеть, чтобы новый адрес сервера подхватывался сразу */
+  if (sameOrigin && (req.mode === 'navigate' || /\/config\.js$/.test(url.pathname))) {
+    e.respondWith(fetch(req).then(function (res) {
+      if (res && res.ok) { var copy = res.clone(); caches.open(VERSION).then(function (c) { c.put(req, copy); }); }
+      return res;
+    }).catch(function () { return caches.match(req, { ignoreSearch: true }).then(function (hit) { return hit || caches.match('index.html'); }); }));
+    return;
+  }
   e.respondWith(
     caches.match(req, { ignoreSearch: true }).then(function (hit) {
       var net = fetch(req).then(function (res) {
