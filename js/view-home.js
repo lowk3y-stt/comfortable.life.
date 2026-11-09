@@ -1,4 +1,4 @@
-/* Экран «Дом»: устройства и сценарии. */
+/* Экран «Дом» */
 (function () {
   'use strict';
   var CL = window.CL, U = CL.ui, L = CL.logic, h = U.h, t = U.t;
@@ -30,39 +30,14 @@
     return card;
   }
 
-  function ecoRow(name, status, action) {
-    return h('div', { class: 'row static eco-row' }, [h('span', { class: 'row-main' }, [h('b', { text: name }), h('small', { class: 'muted', text: status })]), action || null]);
-  }
-
-  function salutInfo() {
-    U.modal({ title: t('salut.title'), body: [h('p', { class: 'plain', text: t('salut.text') })], cancelLabel: t('common.close') });
-  }
-
-  /* список экосистем: что подключено и что пока недоступно */
-  function ecosystems() {
-    var ya = CL.yandex.connected();
-    var yaAct = U.btn(ya ? t('ya.refresh') : t('eco.setup'), 'soft', function (e) {
-      if (!ya) { location.hash = '#/settings'; return; }
-      if (CL.yandex.needPick()) { location.hash = '#/settings'; return; }
-      var b = e.currentTarget; b.disabled = true;
-      CL.yandex.refresh().then(function () { U.toast(t('ya.done', { n: CL.yandex.count() })); }, function () { U.toast(t('ya.err')); }).then(function () { b.disabled = false; });
-    });
-    return h('section', { class: 'block' }, [
-      h('h2', { text: t('eco.title') }),
-      h('div', { class: 'rows' }, [
-        ecoRow(t('eco.yandex'), ya ? (CL.yandex.needPick() ? t('ya.needPick') : t('ya.connected', { n: CL.yandex.count() })) : t('eco.notConnected'), yaAct),
-        ecoRow(t('eco.salut'), t('eco.salutStatus'), U.btn(t('eco.more'), 'ghost', salutInfo)),
-        ecoRow(t('eco.tuya'), t('eco.soon')),
-        ecoRow(t('eco.xiaomi'), t('eco.soon'))
-      ])
-    ]);
-  }
-
   CL.views.home = function (root) {
     root.appendChild(U.head(t('home.title')));
 
     var devs = L.devices();
-    if (!devs.length) root.appendChild(U.empty(t('home.empty')));
+    if (!devs.length) {
+      root.appendChild(U.empty(t('home.empty')));
+      root.appendChild(h('div', { class: 'btn-row' }, [U.btn(t('eco.setup'), 'primary', function () { location.hash = '#/settings'; })]));
+    }
     else {
       var scenes = L.scenes();
       if (scenes.length) {
@@ -82,6 +57,5 @@
         root.appendChild(h('section', { class: 'block' }, [h('h2', { class: 'room', text: t(room) }), grid]));
       });
     }
-    root.appendChild(ecosystems());
   };
 })();

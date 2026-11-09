@@ -591,3 +591,8 @@ details.fold > summary { box-sizing: border-box; height: 60px; line-height: 1.2;
 details.fold > summary > span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
 .folds { align-items: stretch; }
 details.fold, details.fold.c1, details.fold.c2, details.fold.c3, details.fold.c4, details.fold.c5 { border-radius: 20px; background: var(--surface); border: 1px solid var(--line); }
+
+.eco-sub { display: flex; flex-direction: column; gap: 10px; padding-bottom: 14px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
+.eco-sub h2 { font-size: 1.05rem; }
+.eco-sub .btn-row .btn { flex: 1 1 auto; white-space: normal; text-align: center; padding: 10px 16px; }
+.eco-row small { display: block; }

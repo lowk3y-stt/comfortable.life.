@@ -171,6 +171,18 @@
     return card;
   }
 
+  function ecoRow(name, status) {
+    return h('div', { class: 'row static eco-row' }, [h('span', { class: 'row-main' }, [h('b', { text: name }), h('small', { class: 'muted', text: status })])]);
+  }
+  function ecoCard() {
+    var card = h('section', { class: 'card c2' }, [h('h2', { text: t('eco.title') })]);
+    var ya = yandexCard(); ya.className = 'eco-sub';
+    var salut = h('div', { class: 'eco-sub' }, [h('h2', { text: t('salut.title') }), h('p', { class: 'muted', text: t('salut.short') })]);
+    card.appendChild(ya); card.appendChild(salut);
+    card.appendChild(h('div', { class: 'rows' }, [ecoRow(t('eco.tuya'), t('eco.soon')), ecoRow(t('eco.xiaomi'), t('eco.soon'))]));
+    return card;
+  }
+
   /* какие разделы показывать на нижней панели */
   function tabsCard() {
     var card = h('section', { class: 'card c4' }, [h('h2', { text: t('set.tabs') }), h('p', { class: 'muted', text: t('set.tabsHint') })]);
@@ -274,9 +286,8 @@
 
     var about = h('section', { class: 'card c5' }, [h('h2', { text: t('set.about') }), h('p', { class: 'muted', text: t('set.version', { v: CL.version }) })]);
 
-    var salutCard = h('section', { class: 'card c3' }, [h('h2', { text: t('salut.title') }), h('p', { class: 'muted', text: t('salut.short') })]);
     var list = h('div', { class: 'folds' });
-    [accountCard(), yandexCard(), salutCard, langCard, prot, tabsCard(), data, about].forEach(function (c) { list.appendChild(fold(c)); });
+    [accountCard(), ecoCard(), langCard, prot, tabsCard(), data, about].forEach(function (c) { list.appendChild(fold(c)); });
     root.appendChild(list);
   };
 })();
