@@ -54,7 +54,6 @@
   document.addEventListener('touchmove', function (e) {
     if (e.touches && e.touches.length > 1) return;
     var tg = e.target; if (!tg || !tg.closest) return;
-    if (tg.closest('.vkb')) { e.preventDefault(); return; }
     var root = tg.closest('dialog[open], .gate');
     if (!root) return;
     if (!scrollable(tg, root)) e.preventDefault();

@@ -73,7 +73,7 @@
     g.appendChild(h('div', { class: 'blob b2', 'aria-hidden': 'true' }));
     g.appendChild(langs);
     g.appendChild(h('main', { class: 'gate-card' }, [U.leaf(48), h('h1', { text: title }), content]));
-    var f = g.querySelector('input'); if (f) f.focus();
+    var f = g.querySelector('input'); if (f && kind === 'lock') f.focus();
   }
 
   function showLock() {

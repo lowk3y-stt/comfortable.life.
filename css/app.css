@@ -363,7 +363,7 @@ dialog.sheet::backdrop { background: rgba(16, 26, 20, .5); backdrop-filter: blur
 @media (max-width: 899px) { #toast { bottom: calc(var(--tab-h) + var(--sab) + 16px); } }
 
 /* ---------- вход: PIN и знакомство ---------- */
-.gate { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 24px; overflow-y: auto; overflow-x: hidden; overscroll-behavior: none; background: var(--bg); }
+.gate { position: fixed; inset: 0; z-index: 60; display: flex; justify-content: center; align-items: flex-start; padding: calc(var(--sat) + 8px) 24px calc(var(--sab) + 16px); overflow-y: auto; overflow-x: hidden; overscroll-behavior: none; background: var(--bg); }
 .blob { position: absolute; pointer-events: none; border-radius: 42% 58% 63% 37% / 45% 40% 60% 55%; animation: morph 16s ease-in-out infinite alternate, drift 28s ease-in-out infinite alternate; }
 .blob.b1 { width: min(70vw, 640px); aspect-ratio: 1; background: var(--tint-sage); right: -12%; top: -14%; }
 .blob.b2 { width: min(52vw, 460px); aspect-ratio: 1; background: var(--tint-mist); left: -10%; bottom: -16%; animation-delay: -6s, -9s; }
@@ -371,8 +371,8 @@ dialog.sheet::backdrop { background: rgba(16, 26, 20, .5); backdrop-filter: blur
 @keyframes drift { 0% { transform: translate(0, 0) rotate(0); } 100% { transform: translate(24px, 30px) rotate(14deg); } }
 .gate-lang { position: absolute; top: calc(16px + var(--sat)); right: 16px; z-index: 2; background: var(--bg); }
 .gate-card {
-  position: relative; z-index: 1; width: min(420px, 100%); padding: clamp(26px, 5vw, 40px); background: var(--surface); border: 1px solid var(--line);
-  border-radius: 60px 24px 60px 24px; display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center;
+  position: relative; z-index: 1; width: min(460px, 100%); padding: 56px 0 24px; background: none; border: 0;
+  border-radius: 0; display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center;
 }
 .gate-card h1 { font-family: var(--display); font-weight: 500; font-size: 1.4rem; line-height: 1.25; }
 .gate-card > div { width: 100%; display: flex; flex-direction: column; gap: 14px; align-items: center; }
@@ -444,7 +444,6 @@ dialog.sheet::backdrop { background: rgba(16, 26, 20, .5); backdrop-filter: blur
 .auth-form { display: flex; flex-direction: column; gap: 14px; margin-top: 14px; text-align: left; }
 .auth-holder .seg { margin-top: 4px; }
 .gate-card .auth-form input, .gate-card .auth-form select { text-align: left; }
-.gate-card { max-height: 100dvh; overflow-y: auto; }
 .btn.wide { width: 100%; justify-content: center; }
 .fields-2.off { opacity: .5; }
 
@@ -550,49 +549,6 @@ article.note.done .note-top b, article.note.done .note-body { text-decoration: l
 .mini-ev-t { font-size: .74rem; color: var(--muted); }
 .mini-ev-n { font-size: .88rem; overflow-wrap: anywhere; }
 
-/* собственная клавиатура в стиле iPhone: светлая и тёмная */
-.vkb {
-  --kb-bg: #D1D4D9; --kb-key: #FFFFFF; --kb-fn: #AEB3BE; --kb-text: #000; --kb-shadow: #898A8D; --kb-blue: #007AFF; --kb-bar: #D1D4D9; --kb-pop: #FFFFFF;
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 100; max-width: 640px; margin: 0 auto;
-  background: var(--kb-bg); color: var(--kb-text); font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif;
-  touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
-}
-@media (prefers-color-scheme: dark) { .vkb { --kb-bg: #2B2B2D; --kb-key: #6B6B6D; --kb-fn: #454547; --kb-text: #fff; --kb-shadow: #1A1A1B; --kb-bar: #2B2B2D; --kb-pop: #6B6B6D; } }
-.vkb[hidden] { display: none; }
-.vkb-bar { height: 44px; display: flex; justify-content: flex-end; align-items: center; padding: 0 16px; background: var(--kb-bar); border-top: .5px solid rgba(0,0,0,.25); }
-.vkb-done { padding: 10px 6px; color: var(--kb-blue); font-size: 17px; font-weight: 600; cursor: pointer; }
-.vkb-keys { display: flex; flex-direction: column; gap: 11px; padding: 8px 3px calc(8px + var(--sab)); }
-.kr { display: flex; gap: 6px; justify-content: center; }
-.kr.r2 { padding: 0 5%; }
-.kr.r3 { gap: 6px; }
-.k { flex: 1 1 0; min-width: 0; height: 42px; border-radius: 5px; background: var(--kb-key); color: var(--kb-text); box-shadow: 0 1px 0 var(--kb-shadow);
-  display: grid; place-items: center; font-size: 23px; font-weight: 400; line-height: 1; cursor: pointer; position: relative; }
-.k.down { background: var(--kb-fn); }
-.k-fn { background: var(--kb-fn); font-size: 16px; }
-.k-fn.down, .k-fn.on { background: var(--kb-key); }
-.k-wide { flex: 1.45 1 0; }
-.k-small { font-size: 16px; }
-.k-mode { flex: 1.25 1 0; }
-.k-globe { flex: 1.25 1 0; }
-.k-space { flex: 5.5 1 0; font-size: 16px; }
-.k-ret { flex: 2.4 1 0; font-size: 16px; }
-.k-go { background: var(--kb-blue); color: #fff; box-shadow: 0 1px 0 rgba(0,0,0,.35); font-size: 16px; }
-.k-go.down { background: #005FCC; }
-.kr.num .k { height: 46px; font-size: 26px; }
-.kpop { position: absolute; z-index: 5; display: flex; justify-content: center; align-items: center; height: 56px; background: var(--kb-pop); color: var(--kb-text);
-  border-radius: 10px; font-size: 32px; box-shadow: 0 2px 10px rgba(0,0,0,.3); pointer-events: none; }
-.kpop span { display: grid; place-items: center; min-width: 100%; }
-.kpop.kalts { gap: 2px; padding: 4px; pointer-events: none; }
-.kpop.kalts .alt { min-width: 36px; height: 46px; border-radius: 6px; font-size: 26px; }
-.kpop.kalts .alt.on { background: var(--kb-blue); color: #fff; }
-dialog .vkb { position: fixed; }
-body.kb-open { --kbp: calc(var(--kb-h, 0px) + 24px); }
-body.kb-open #view { padding-bottom: var(--kbp); }
-body.kb-open .tabbar { display: none; }
-body.kb-open .ai { bottom: var(--kb-h, 0px); max-height: calc(100dvh - var(--kb-h, 0px) - 8px); }
-body.kb-open .ai.fs { height: calc(100dvh - var(--kb-h, 0px)); }
-body.kb-open dialog.sheet { margin-bottom: var(--kb-h, 0px); max-height: calc(100dvh - var(--kb-h, 0px) - 12px); }
-body.kb-open #toast { bottom: calc(var(--kb-h, 0px) + 12px); }
 
 /* ===== v0.5.1: без верхней панели, плавающие кнопки, сворачиваемые настройки ===== */
 .top { position: static; min-height: 0; height: 0; padding: 0; background: none; backdrop-filter: none; -webkit-backdrop-filter: none; overflow: visible; }
@@ -602,7 +558,6 @@ body.kb-open #toast { bottom: calc(var(--kb-h, 0px) + 12px); }
 .fab { width: 48px; height: 48px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--ink); display: grid; place-items: center; padding: 0; cursor: pointer; box-shadow: 0 8px 22px -10px color-mix(in srgb, var(--ink) 55%, transparent); }
 .fab .ic { stroke: var(--leaf); width: 22px; height: 22px; }
 .ai-fab { background: var(--tint-sage); }
-body.kb-open .fabs { display: none; }
 
 .mini-wrap.solo { grid-template-columns: minmax(0, 1fr); }
 .mini-wrap.solo .mini-day { min-height: 38px; font-size: .95rem; }
@@ -614,7 +569,6 @@ details.fold > summary::-webkit-details-marker { display: none; }
 details.fold > summary .ic { flex: none; color: var(--muted); transition: transform .2s; }
 details.fold[open] > summary .ic { transform: rotate(90deg); }
 details.fold > .fold-body { display: flex; flex-direction: column; gap: 14px; padding: 0 22px 22px; }
-.vkb-bar .k.vkb-done { flex: none; height: auto; display: block; background: none; box-shadow: none; font-size: 17px; }
 .rec-key { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 1.15rem; letter-spacing: .06em; line-height: 1.6; padding: 14px 16px; border-radius: 16px; background: var(--tint-sage); word-break: break-all; text-align: center; user-select: all; }
 .member-name .fp { font-size: .72rem; letter-spacing: .03em; }
 .auth-form h3 { font-family: var(--display); font-weight: 500; font-size: 1.1rem; }
@@ -623,10 +577,17 @@ details.fold > .fold-body { display: flex; flex-direction: column; gap: 14px; pa
 html, body { overscroll-behavior: none; }
 dialog.sheet, .gate-card { overscroll-behavior: contain; }
 .gate::before, .gate::after { content: ''; }
-.gate > .gate-card { margin: auto; }
+.gate > .gate-card { margin: 0 auto; }
 input, textarea, select { font-size: max(16px, 1em); }
 .pw-wrap { position: relative; display: block; width: 100%; }
 .pw-wrap > input { width: 100%; padding-right: 46px; }
 .pw-eye { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); width: 42px; height: 42px; display: grid; place-items: center; background: none; border: 0; color: var(--muted); cursor: pointer; border-radius: 10px; }
 .pw-eye[aria-pressed="true"] { color: var(--accent, currentColor); }
 .auth-check { margin-top: 10px; text-align: center; }
+
+.field input, .field select, .field textarea, .gate-form input, .ai-form input { line-height: 1.3; caret-color: var(--leaf); }
+details.fold { width: 100%; box-sizing: border-box; }
+details.fold > summary { box-sizing: border-box; height: 60px; line-height: 1.2; }
+details.fold > summary > span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.folds { align-items: stretch; }
+details.fold, details.fold.c1, details.fold.c2, details.fold.c3, details.fold.c4, details.fold.c5 { border-radius: 20px; background: var(--surface); border: 1px solid var(--line); }

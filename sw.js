@@ -1,10 +1,10 @@
 /* Comfortable life — работа без интернета.
    Файлы приложения кэшируются при первом открытии; шрифты Google сохраняются при первом удачном запросе.
    При выпуске новой версии измените VERSION — старый кэш удалится сам. */
-var VERSION = 'cl-app-0.6.1';
+var VERSION = 'cl-app-0.6.2';
 var SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
-  'js/i18n.js', 'js/store.js', 'js/ui.js', 'js/logic.js', 'js/e2e.js', 'js/sync.js', 'js/account.js', 'js/auth-ui.js', 'js/keyboard.js', 'js/pwd.js', 'js/yandex.js', 'config.js',
+  'js/i18n.js', 'js/store.js', 'js/ui.js', 'js/logic.js', 'js/e2e.js', 'js/sync.js', 'js/account.js', 'js/auth-ui.js', 'js/pwd.js', 'js/yandex.js', 'config.js',
   'js/view-today.js', 'js/view-home.js', 'js/view-notes.js', 'js/view-calendar.js',
   'js/view-sport.js', 'js/view-health.js', 'js/view-family.js', 'js/view-settings.js',
   'js/assistant.js', 'js/app.js',

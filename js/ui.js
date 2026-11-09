@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var CL = (window.CL = window.CL || {});
-  CL.version = '0.6.1';
+  CL.version = '0.6.2';
   CL.views = CL.views || {};
   CL.actions = CL.actions || {};
 

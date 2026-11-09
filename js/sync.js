@@ -274,6 +274,7 @@
     if (e.code === 'crypto') return t('sync.err.crypto');
     if (e.code && /^(email|password|mismatch|self|profile|birth|gender)$/.test(e.code)) return t('acc.err.' + e.code);
     var known = /^(email|taken|login|locked|code|wait|mailquota|notfound|member|session|self|limit|owner|noinvite|auth|exists|profile|birth|gender|badcode|infam|noai|aiquota|noyandex|reckey|kver|big|bad)$/;
+    if (e.error === 'mailsend') return t('acc.err.mailsend', { d: e.detail || '' });
     if (e.error === 'nourl') return t('sync.err.url');
     if (e.error === 'yandex') return t('ya.err');
     if (known.test(e.error || '')) return t('acc.err.' + e.error);
