@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var CL = (window.CL = window.CL || {});
-  CL.version = '0.7.0';
+  CL.version = '0.8.0';
   CL.views = CL.views || {};
   CL.actions = CL.actions || {};
 
@@ -260,6 +260,8 @@
   }
 
   function notifCard() {
+    return null;
+    if (!CL.notifyOn) return null;
     var list = CL.logic && CL.logic.notifs ? CL.logic.notifs() : [];
     if (!list.length) return null;
     var items = list.slice(0, 8).map(function (x) {

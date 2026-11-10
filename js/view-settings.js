@@ -126,7 +126,7 @@
     var rows = CL.yandex.raw().map(function (x) {
       return h('div', { class: 'raw-dev' }, [h('b', { text: x.name + ' (' + x.type + ')' }), h('small', { class: 'muted', text: 'cap: ' + (x.caps.join(', ') || '-') }), h('small', { class: 'muted', text: 'prop: ' + (x.props.join(', ') || '-') })]);
     });
-    U.modal({ title: t('ya.raw'), body: [h('p', { class: 'muted', text: t('ya.rawHint') }), h('div', { class: 'raw-list' }, rows.length ? rows : [h('p', { text: t('ya.pickNone') })])], cancelLabel: t('common.close') });
+    U.modal({ title: t('ya.raw'), body: [h('p', { class: 'muted', text: t('ya.rawHint') }), h('p', { class: 'muted small', text: CL.yandex.meta() }), h('div', { class: 'raw-list' }, rows.length ? rows : [h('p', { text: t('ya.pickNone') })])], cancelLabel: t('common.close') });
   }
   function yandexCard() {
     var a = CL.sync.acct(), card = h('section', { class: 'card c2' }, [h('h2', { text: t('ya.title') })]);

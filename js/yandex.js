@@ -154,6 +154,7 @@
       if (r && r.error === 'noyandex') { if (acct()) acct().ya = false; S.save(); }
       if (!r.ok || !r.data || r.data.status !== 'ok') throw r;
       lastInfo = r.data;
+      st().yaScenes = (r.data.scenarios || []).map(function (x) { return { id: x.id, name: x.name }; }).filter(function (x) { return x.id && x.name; });
       return r.data;
     });
   }
@@ -162,6 +163,8 @@
     busy = true;
     return fetchInfo().then(function (info) {
       if (Array.isArray(st().yaPick)) mergeDevices(info);
+      var sy = CL.sync.cfg();
+      if (Array.isArray(st().yaPick) && sy && !sy.home && !via() && acct().ya) CL.sync.setHome({ pick: st().yaPick });
     }).catch(function (e) {
       if (!quiet) throw e;
     }).then(function () { busy = false; }, function (e) { busy = false; throw e; });
@@ -178,9 +181,17 @@
   function setPick(ids) {
     st().yaPick = ids.slice();
     var hm = CL.sync.cfg() && CL.sync.cfg().home;
+    var sy = CL.sync.cfg();
     if (hm && hm.aid === acct().aid) CL.sync.setHome({ pick: ids });
+    else if (sy && !hm && !via()) CL.sync.setHome({ pick: ids });
     if (lastInfo) mergeDevices(lastInfo);
     S.save();
+  }
+  function scenes() { return (st() && st().yaScenes) || []; }
+  function runScene(id) {
+    return ya({ method: 'POST', path: '/v1.0/scenarios/' + encodeURIComponent(id) + '/actions' }).then(function (r) {
+      if (!r.ok || !r.data || r.data.status !== 'ok') throw r;
+    });
   }
   function count() { return st() ? st().devices.filter(function (d) { return d.src === 'yandex'; }).length : 0; }
   function needPick() { return connected() && !via() && !Array.isArray(st().yaPick); }
@@ -213,6 +224,11 @@
     }, 350);
   }
   /* что именно возвращает Яндекс: для проверки, почему устройства нет или оно урезано */
+  function meta() {
+    var i = lastInfo || {}, n = function (a) { return Array.isArray(a) ? a.length : 0; };
+    var hh = (i.households || []).map(function (x) { return x.name + ' (' + n(x.devices || []) + ')'; }).join(', ');
+    return 'devices: ' + n(i.devices) + '; rooms: ' + n(i.rooms) + '; groups: ' + n(i.groups) + '; scenarios: ' + n(i.scenarios) + '; households: ' + (hh || n(i.households)) + '; keys: ' + Object.keys(i).join(',');
+  }
   function raw() {
     var info = lastInfo || { devices: [] };
     return (info.devices || []).map(function (yd) {
@@ -230,5 +246,5 @@
   }
   function stop() { clearInterval(poll); poll = null; }
 
-  CL.yandex = { login: login, disconnect: disconnect, refresh: refresh, fetchInfo: fetchInfo, choices: choices, setPick: setPick, act: act, raw: raw, lbl: lbl, val: val, needPick: needPick, connected: connected, via: via, isAdmin: isAdmin, send: send, count: count, start: start, stop: stop };
+  CL.yandex = { login: login, disconnect: disconnect, refresh: refresh, fetchInfo: fetchInfo, choices: choices, setPick: setPick, act: act, raw: raw, meta: meta, scenes: scenes, runScene: runScene, lbl: lbl, val: val, needPick: needPick, connected: connected, via: via, isAdmin: isAdmin, send: send, count: count, start: start, stop: stop };
 })();

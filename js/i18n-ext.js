@@ -17,6 +17,7 @@
     "nt.note.new": "{n} добавил(а) заметку «{t}»", "nt.note.edit": "{n} изменил(а) заметку «{t}»", "nt.note.resp": "{n} откликнулся(ась) на заметку «{t}»",
     "nt.event.new": "{n} добавил(а) событие «{t}»", "nt.event.edit": "{n} изменил(а) событие «{t}»", "nt.event.resp": "{n} откликнулся(ась) на событие «{t}»",
     "set.privacy": "Политика конфиденциальности",
+    "ya.scenes": "Сценарии Алисы", "ya.scenesHint": "Из «Дома с Алисой». Запускаются у всех в семье с главного аккаунта.", "ya.noCtl": "Яндекс не даёт управлять этим устройством напрямую. Создайте в «Доме с Алисой» сценарий (например, «Включить ТВ»), он появится здесь кнопкой.",
     "acc.keyNote": "Ключи шифрования создаются на телефоне. Сервер хранит только зашифрованные общие данные и прочитать их не может."
   });
   CL.i18n.add('en', {
@@ -35,6 +36,7 @@
     "nt.note.new": "{n} added a note “{t}”", "nt.note.edit": "{n} changed the note “{t}”", "nt.note.resp": "{n} responded to the note “{t}”",
     "nt.event.new": "{n} added an event “{t}”", "nt.event.edit": "{n} changed the event “{t}”", "nt.event.resp": "{n} responded to the event “{t}”",
     "set.privacy": "Privacy policy",
+    "ya.scenes": "Alice scenarios", "ya.scenesHint": "From Yandex Smart Home. They run for everyone in the family from the main account.", "ya.noCtl": "Yandex does not allow direct control of this device. Create a scenario in Yandex Smart Home (for example “Turn on TV”), and it will appear here as a button.",
     "acc.keyNote": "Encryption keys are created on your phone. The server stores only encrypted shared data and cannot read it."
   });
 })();

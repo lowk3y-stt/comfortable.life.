@@ -67,7 +67,7 @@
   /* что именно не так, когда «нет связи»: сервер не отвечает, нет базы или нет таблиц */
   function ping() {
     var url = serverUrl(), ctl = window.AbortController ? new AbortController() : null;
-    var to = setTimeout(function () { if (ctl) ctl.abort(); }, 8000);
+    var to = setTimeout(function () { if (ctl) ctl.abort(); }, 15000);
     return fetch(url, { method: 'GET', signal: ctl ? ctl.signal : undefined }).then(function (r) { clearTimeout(to); return r.json(); }).then(function (d) { return d || {}; }, function () { clearTimeout(to); return null; });
   }
   function explain(e) {
@@ -140,7 +140,11 @@
     out.resp = Object.keys(by).map(function (k) { return by[k]; }).sort(function (x, y) { return x.ts - y.ts; });
     return out;
   }
+  var NOTIFY = false;
+  var NOTIFY = false;
   function notifyChanges(old, items) {
+    if (!NOTIFY) return;
+    if (!NOTIFY) return;
     var me = (acct() || {}).aid, s = st(), fresh = [], horizon = Date.now() - 3 * 86400000;
     Object.keys(items).forEach(function (k) {
       var e = items[k], d = e.d, o = old[k];
@@ -229,7 +233,7 @@
   }
   function setHome(obj) {
     var sy = cfg(); if (!sy) return;
-    sy.home = obj ? { aid: sy.aid, pick: (obj.pick || []).slice(), u: Date.now() } : { aid: '', pick: [], u: Date.now() };
+    sy.home = obj ? { aid: sy.aid, pick: (obj.pick || []).slice(), u: Date.now() } : { aid: '', pick: [], off: true, u: Date.now() };
     if (!obj) delete st().homeAid; else st().homeAid = sy.aid;
     S.save(); run();
   }
@@ -349,7 +353,7 @@
     return t('sync.err.net');
   }
 
-  var PING_FAMILY = 8000, PING_ALONE = 20000;
+  var PING_FAMILY = 12000, PING_ALONE = 20000;
   function run() {
     if (!cfg() || !st()) return Promise.resolve();
     if (running) { again = true; return Promise.resolve(); }
@@ -424,6 +428,6 @@
     status: function () { return status; },
     notify: notify,
     onChange: function (f) { listeners.push(f); },
-    URL_OK: /^(https:\/\/script\.google(usercontent)?\.com\/.+\/exec|https:\/\/[a-z0-9.-]+\.(workers|pages)\.dev(\/.*)?|http:\/\/localhost:\d+(\/.*)?)$/
+    URL_OK: /^(https:\/\/script\.google(usercontent)?\.com\/.+\/exec|https:\/\/[a-z0-9.-]+\.(workers|pages)\.dev(\/.*)?|https:\/\/[a-z0-9.-]+\.yandexcloud\.net(\/.*)?|https:\/\/[a-z0-9.-]+\.apigw\.yandexcloud\.net(\/.*)?|http:\/\/localhost:\d+(\/.*)?)$/
   };
 })();

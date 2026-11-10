@@ -18,6 +18,7 @@
         return h('span', { class: 'chip' }, [h('small', { text: Y.lbl(x.i) }), h('b', { text: txt })]);
       })));
     }
+    if (!d.hasOn && !(d.yc || []).length && !(d.ys || []).length) { box.appendChild(h('p', { class: 'muted small', text: t('ya.noCtl') })); return box; }
     if (d.hasOn && !d.on) return box;
     (d.yc || []).forEach(function (c) {
       var name = Y.lbl(c.i);
@@ -96,6 +97,16 @@
     });
     pills.appendChild(h('button', { type: 'button', class: 'pill', onclick: function () { sceneDialog(null); } }, [U.icon('plus'), h('span', { text: t('home.addScene') })]));
     root.appendChild(h('section', { class: 'block' }, [h('h2', { text: t('home.scenes') }), pills]));
+    var ys = CL.yandex && CL.yandex.connected() ? CL.yandex.scenes() : [];
+    if (ys.length) {
+      var yp = h('div', { class: 'pills' });
+      ys.forEach(function (s) {
+        yp.appendChild(h('button', { type: 'button', class: 'pill', onclick: function () {
+          CL.yandex.runScene(s.id).then(function () { U.toast(t('home.ran', { n: s.name })); }, function () { U.toast(t('ya.sendErr')); });
+        } }, [U.icon('sparkle'), h('span', { text: s.name })]));
+      });
+      root.appendChild(h('section', { class: 'block' }, [h('h2', { text: t('ya.scenes') }), h('p', { class: 'muted small', text: t('ya.scenesHint') }), yp]));
+    }
     if (devs.length) {
       var order = ROOMS.slice();
       devs.forEach(function (d) { if (order.indexOf(d.room) < 0) order.push(d.room); });

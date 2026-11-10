@@ -36,7 +36,6 @@
     var inp = h('input', { type: 'text', maxlength: 200, value: mine ? mine.text : '', placeholder: t('notes.respPh'), 'data-autofocus': '1' });
     U.modal({
       title: t('notes.respond'), body: [h('p', { class: 'muted', text: t('notes.respHint') }), U.field(t('notes.respText'), inp)], submitLabel: t('notes.respSend'),
-      extra: mine ? [{ label: t('notes.respUndo'), kind: 'danger', onClick: function (close) { L.unrespond(n.id); close(); CL.app.render(); } }] : [],
       onSubmit: function () { if (!inp.value.trim()) return false; L.respond(n.id, inp.value); CL.app.render(); }
     });
   }
