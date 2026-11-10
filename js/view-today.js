@@ -196,6 +196,7 @@
       h('p', { class: 'lead', text: lead })
     ]));
 
+    var nc = U.notifCard(); if (nc) root.appendChild(nc);
     if (editing) { root.appendChild(editor(st)); return; }
 
     var ctx = { st: st, todayKey: todayKey, evToday: evToday, evTomorrow: evTomorrow };

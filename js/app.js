@@ -42,6 +42,12 @@
     });
   }
 
+  var scrollMem = {};
+  window.addEventListener('scroll', function () { if (S.get() && !$('app').hidden) scrollMem[route()] = window.scrollY; }, { passive: true });
+  function restoreScroll() {
+    var y = scrollMem[route()];
+    if (y != null && Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y);
+  }
   function render() {
     if (!S.get() || $('app').hidden) return;
     var r = route();
@@ -50,10 +56,12 @@
     root.textContent = '';
     try { CL.views[r](root); }
     catch (e) { console.error(e); root.appendChild(h('p', { class: 'err', text: String(e && e.message || e) })); }
+    restoreScroll();
     CL.assistant.refresh();
   }
 
   function onRoute() {
+    scrollMem[route()] = 0;
     render();
     window.scrollTo(0, 0);
     var v = $('view'); if (v) { try { v.focus({ preventScroll: true }); } catch (e) {} }
@@ -66,9 +74,14 @@
     $('app').hidden = true;
     var g = $('gate'); g.hidden = false; g.textContent = '';
     var cur = CL.i18n.getLang();
-    var langs = h('div', { class: 'seg gate-lang', role: 'group', 'aria-label': t('lang.switch') }, ['ru', 'en'].map(function (l) {
-      return h('button', { type: 'button', 'aria-pressed': cur === l ? 'true' : 'false', onclick: function () { S.meta().lang = l; S.saveMeta(); applyLang(); (kind === 'lock' ? showLock : function () { showOnboarding(); })(); } }, l.toUpperCase());
-    }));
+    var langs = h('select', { class: 'gate-lang', 'aria-label': t('lang.switch') }, CL.i18n.LANGS.map(function (o) { return h('option', { value: o.code, text: o.name, selected: o.code === cur }); }));
+    langs.addEventListener('change', function () {
+      var l = langs.value;
+      U.keepFields('#gate', function () {
+        S.meta().lang = l; S.saveMeta(); applyLang();
+        if (kind === 'lock') showLock(); else showOnboarding(onbManual);
+      });
+    });
     g.appendChild(h('div', { class: 'blob b1', 'aria-hidden': 'true' }));
     g.appendChild(h('div', { class: 'blob b2', 'aria-hidden': 'true' }));
     g.appendChild(langs);
@@ -103,7 +116,9 @@
     var w = S.failInfo(); if (w) wait(w);
   }
 
+  var onbManual = false;
   function showOnboarding(manual) {
+    onbManual = !!manual;
     var st = S.get();
     function finish() { st.profile.done = true; S.save(); S.flush(); showApp(); }
     /* без аккаунта: только имя, всё хранится на телефоне */
@@ -166,10 +181,12 @@
   document.addEventListener('visibilitychange', function () {
     if (!S.get()) return;
     if (document.hidden) { hiddenAt = Date.now(); S.flush(); return; }
+    setTimeout(restoreScroll, 0); setTimeout(restoreScroll, 200);
     if (S.hasPin() && hiddenAt && Date.now() - hiddenAt >= (S.meta().autolock || 1) * 60000) lockNow();
     hiddenAt = 0;
   });
   window.addEventListener('pagehide', function () { if (S.get()) S.flush(); });
+  window.addEventListener('pageshow', function () { setTimeout(restoreScroll, 0); setTimeout(restoreScroll, 200); });
 
   CL.app = {
     render: render, applyLang: applyLang,

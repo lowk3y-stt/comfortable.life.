@@ -21,43 +21,29 @@
     return U.select([{ v: '', l: t('acc.pick') }, { v: 'm', l: t('acc.male') }, { v: 'f', l: t('acc.female') }], value || '');
   }
 
-  /* окно «Забыли пароль»: почта + ключ восстановления + новый пароль (письма не нужны) */
+  /* забытый пароль: код на почту и новый пароль */
   function resetDialog(startEmail) {
     var email = h('input', { type: 'email', autocomplete: 'email', required: true, value: startEmail || '', 'data-autofocus': true });
-    var key = h('input', { type: 'text', autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false', required: true, placeholder: 'XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XX' });
-    var pw = h('input', { type: 'password', autocomplete: 'new-password', minlength: 8, required: true });
+    var code = h('input', { type: 'text', inputmode: 'numeric', maxlength: 6, autocomplete: 'one-time-code', 'aria-label': t('acc.code') });
+    var pw = h('input', { type: 'password', autocomplete: 'new-password', minlength: 8 });
     var err = h('p', { class: 'err', role: 'alert' });
+    var rest = h('div', { class: 'auth-form', hidden: true }, [h('p', { class: 'muted', text: t('acc.resetSent') }), U.field(t('acc.code'), code), U.field(t('acc.newPass'), pw), h('p', { class: 'muted small', text: t('acc.resetWarn') })]);
+    var send = h('button', { type: 'button', class: 'btn soft wide' }, t('acc.sendCode'));
+    send.addEventListener('click', function () {
+      err.textContent = ''; send.disabled = true;
+      CL.account.resetStart(email.value).then(function () { rest.hidden = false; send.disabled = false; send.textContent = t('acc.sendAgain'); code.focus(); }, function (e) { send.disabled = false; show(err, e); });
+    });
     var m = U.modal({
       title: t('acc.reset'),
-      body: [h('p', { class: 'muted', text: t('acc.resetText') }), U.field(t('acc.email'), email), U.field(t('acc.recKey'), key), U.field(t('acc.newPass'), pw), err],
-      submitLabel: t('acc.recoverBtn'),
+      body: [h('p', { class: 'muted', text: t('acc.resetText') }), U.field(t('acc.email'), email), send, rest, err],
+      submitLabel: t('acc.resetBtn'),
       onSubmit: function () {
         err.textContent = '';
-        CL.account.recover(email.value, key.value, pw.value).then(function () { U.toast(t('acc.resetDone')); m.close(); }, function (e) { show(err, e); });
+        if (rest.hidden) { err.textContent = t('acc.resetNeedCode'); return false; }
+        CL.account.resetFinish(email.value, code.value, pw.value).then(function () { U.toast(t('acc.resetDone')); m.close(); if (CL.app && CL.app.render) CL.app.render(); }, function (e) { show(err, e); });
         return false;
       }
     });
-  }
-
-  /* показ ключа восстановления: один раз, дальше не продолжить без отметки «сохранил(а)» */
-  function keyStep(container, o, next) {
-    var saved = h('input', { type: 'checkbox', 'data-native': '1' });
-    var go = h('button', { type: 'submit', class: 'btn primary wide', disabled: true }, t('acc.recContinue'));
-    saved.addEventListener('change', function () { go.disabled = !saved.checked; });
-    var shown = h('p', { class: 'rec-key', translate: 'no', text: o.recoveryKey });
-    var copy = h('button', { type: 'button', class: 'btn soft', onclick: function () {
-      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(o.recoveryKey).then(function () { U.toast(t('acc.copied')); }, function () { U.toast(o.recoveryKey); });
-      else U.toast(o.recoveryKey);
-    } }, t('acc.recCopy'));
-    container.textContent = '';
-    container.appendChild(h('form', { class: 'auth-form', onsubmit: function (e) { e.preventDefault(); next(); } }, [
-      h('h3', { text: t('acc.recTitle') }),
-      h('p', { class: 'muted', text: t('acc.recText') }),
-      shown,
-      h('div', { class: 'btn-row' }, [copy]),
-      h('label', { class: 'check' }, [saved, h('span', { text: t('acc.recSaved') })]),
-      go
-    ]));
   }
 
   /* container — куда рисовать; opts.onDone() вызывается после успешного входа */
@@ -126,7 +112,7 @@
         var prof = { surname: surname.value, name: name.value, birth: birth.value, gender: gender.value };
         busy(up, function () { return CL.account.register(prof, email.value, pw.value); }).then(function (r) {
           pending = { email: email.value.trim().toLowerCase(), prof: prof };
-          keyStep(container, r, function () { if (r.needCode) { mode = 'code'; render(container, opts); } else done(); });
+          if (r.needCode) { mode = 'code'; render(container, opts); } else done();
         }, function (e2) { show(err, e2); });
       } }, [
         h('div', { class: 'fields-2' }, [U.field(t('acc.surname'), surname), U.field(t('acc.name'), name)]),
@@ -142,5 +128,5 @@
     container.appendChild(form);
   }
 
-  CL.authUI = { render: render, resetDialog: resetDialog, genderSelect: genderSelect, keyStep: keyStep };
+  CL.authUI = { render: render, resetDialog: resetDialog, genderSelect: genderSelect };
 })();

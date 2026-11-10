@@ -98,31 +98,11 @@
     ]));
     card.appendChild(h('div', { class: 'btn-row' }, [
       U.btn(t('acc.editProfile'), 'soft', profileDialog, 'edit'),
-      U.btn(t('acc.recNew'), 'soft', recKeyDialog),
       U.btn(t('acc.signout'), 'ghost', function () {
         U.confirm(t('acc.signoutAsk'), t('acc.signout')).then(function (yes) { if (yes) CL.account.logout().then(function () { CL.app.render(); }); });
       })
     ]));
     return card;
-  }
-
-  /* новый ключ восстановления: по паролю, показывается один раз */
-  function recKeyDialog() {
-    var pw = h('input', { type: 'password', autocomplete: 'current-password', required: true, 'data-autofocus': true });
-    var err = h('p', { class: 'err', role: 'alert' });
-    var m = U.modal({
-      title: t('acc.recNew'), body: [h('p', { class: 'muted', text: t('acc.recNewText') }), U.field(t('acc.password'), pw), err], submitLabel: t('acc.recNew'),
-      onSubmit: function () {
-        err.textContent = '';
-        CL.account.newRecoveryKey(pw.value).then(function (key) {
-          m.close();
-          var holder = h('div');
-          var mm = U.modal({ title: t('acc.recTitle'), body: [holder], cancelLabel: t('common.close') });
-          CL.authUI.keyStep(holder, { recoveryKey: key }, function () { mm.close(); });
-        }, function (e) { err.textContent = CL.sync.message(e); });
-        return false;
-      }
-    });
   }
 
   /* ---------- Яндекс ---------- */
@@ -135,17 +115,35 @@
     list.forEach(function (d) {
       var cb = h('input', { type: 'checkbox', checked: !!chosen[d.id], 'data-native': '1', 'aria-label': d.name });
       cb.addEventListener('change', function () { chosen[d.id] = cb.checked; });
-      rows.appendChild(h('label', { class: 'row static pick-row' }, [h('span', { class: 'row-main' }, [h('b', { text: d.name }), h('small', { class: 'muted', text: d.room })]), cb]));
+      rows.appendChild(h('label', { class: 'row static pick-row' }, [h('span', { class: 'row-main' }, [h('b', { text: d.name }), h('small', { class: 'muted', text: d.room + (d.view ? (d.room ? ' · ' : '') + t('ya.viewOnly') : '') })]), cb]));
     });
     U.modal({ title: t('ya.pick'), body: [h('p', { class: 'muted', text: t('ya.pickHint') }), rows], submitLabel: t('common.save'), onSubmit: function () {
       CL.yandex.setPick(list.filter(function (d) { return chosen[d.id]; }).map(function (d) { return d.id; }));
       if (done) done();
     } });
   }
+  function rawDialog() {
+    var rows = CL.yandex.raw().map(function (x) {
+      return h('div', { class: 'raw-dev' }, [h('b', { text: x.name + ' (' + x.type + ')' }), h('small', { class: 'muted', text: 'cap: ' + (x.caps.join(', ') || '-') }), h('small', { class: 'muted', text: 'prop: ' + (x.props.join(', ') || '-') })]);
+    });
+    U.modal({ title: t('ya.raw'), body: [h('p', { class: 'muted', text: t('ya.rawHint') }), h('div', { class: 'raw-list' }, rows.length ? rows : [h('p', { text: t('ya.pickNone') })])], cancelLabel: t('common.close') });
+  }
   function yandexCard() {
     var a = CL.sync.acct(), card = h('section', { class: 'card c2' }, [h('h2', { text: t('ya.title') })]);
     var err = h('p', { class: 'err', role: 'alert' });
     if (!a) { card.appendChild(h('p', { class: 'muted', text: t('ya.need') })); return card; }
+    var vi = CL.yandex.via();
+    if (vi) {
+      var rf = U.btn(t('ya.refresh'), 'soft', function () {
+        err.textContent = '';
+        busy(rf, function () { return CL.yandex.refresh(); }).then(function () { U.toast(t('ya.done', { n: CL.yandex.count() })); CL.app.render(); }, function () { err.textContent = t('ya.err'); });
+      });
+      card.appendChild(h('p', { text: t('ya.viaText', { n: L.memberName(vi) || '?' }) }));
+      card.appendChild(h('p', { class: 'muted small', text: t('ya.connected', { n: CL.yandex.count() }) }));
+      card.appendChild(h('div', { class: 'btn-row' }, [rf, U.btn(t('ya.raw'), 'soft', function (e) { var b = e.currentTarget; busy(b, function () { return CL.yandex.fetchInfo(); }).then(rawDialog, function () { err.textContent = t('ya.err'); }); })]));
+      card.appendChild(err);
+      return card;
+    }
     if (a.ya) {
       var pick = U.btn(t('ya.pick'), 'primary', function () {
         err.textContent = '';
@@ -156,7 +154,16 @@
         busy(refresh, function () { return CL.yandex.refresh(); }).then(function () { U.toast(t('ya.done', { n: CL.yandex.count() })); CL.app.render(); }, function () { err.textContent = t('ya.err'); });
       });
       card.appendChild(h('p', { text: CL.yandex.needPick() ? t('ya.needPick') : t('ya.connected', { n: CL.yandex.count() }) }));
-      card.appendChild(h('div', { class: 'btn-row' }, [pick, refresh, U.btn(t('ya.disconnect'), 'ghost', function () {
+      var fm = CL.sync.cfg() && CL.sync.cfg().fam;
+      if (fm && fm.members.length > 1) {
+        var shared = CL.sync.homeAid() === a.aid;
+        var hsw = h('button', { type: 'button', class: 'switch', role: 'switch', 'aria-checked': shared ? 'true' : 'false', 'aria-label': t('ya.share'), onclick: function () {
+          CL.sync.setHome(shared ? null : { pick: S.get().yaPick || [] }); CL.app.render();
+        } }, h('span', { class: 'knob' }));
+        card.appendChild(h('div', { class: 'row static' }, [h('span', { class: 'row-main', text: t('ya.share') }), hsw]));
+        card.appendChild(h('p', { class: 'muted small', text: t('ya.shareHint') }));
+      }
+      card.appendChild(h('div', { class: 'btn-row' }, [pick, refresh, U.btn(t('ya.raw'), 'soft', function (e) { var b = e.currentTarget; busy(b, function () { return CL.yandex.fetchInfo(); }).then(rawDialog, function () { err.textContent = t('ya.err'); }); }), U.btn(t('ya.disconnect'), 'ghost', function () {
         U.confirm(t('ya.disconnectAsk'), t('ya.disconnect')).then(function (ok) { if (ok) CL.yandex.disconnect().then(function () { CL.app.render(); }, function () { err.textContent = t('ya.err'); }); });
       })]));
     } else {
@@ -229,13 +236,39 @@
     return d;
   }
 
+  function segControl(opts, cur, onPick, label) {
+    var seg = h('div', { class: 'seg', role: 'group', 'aria-label': label }, []);
+    opts.forEach(function (o) {
+      var b = h('button', { type: 'button', 'aria-pressed': o.v === cur ? 'true' : 'false', onclick: function () { onPick(o.v); } }, o.l);
+      seg.appendChild(b);
+    });
+    return seg;
+  }
+  function appearanceCard() {
+    var cur = CL.theme.get().theme;
+    var seg = segControl([{ v: 'auto', l: t('theme.auto') }, { v: 'light', l: t('theme.light') }, { v: 'dark', l: t('theme.dark') }], cur, function (v) { CL.theme.set('theme', v); CL.app.render(); }, t('set.theme'));
+    return h('section', { class: 'card c4' }, [h('h2', { text: t('set.appearance') }), h('p', { class: 'muted', text: t('set.themeHint') }), seg]);
+  }
+  function a11yCard() {
+    var v = CL.theme.get();
+    var sel = U.select([{ v: 'none', l: t('a11y.none') }, { v: 'cb', l: t('a11y.cb') }, { v: 'contrast', l: t('a11y.contrast') }], v.a11y);
+    sel.addEventListener('change', function () { CL.theme.set('a11y', sel.value); CL.app.render(); });
+    var on = v.text === 'large';
+    var sw = h('button', { type: 'button', class: 'switch', role: 'switch', 'aria-checked': on ? 'true' : 'false', 'aria-label': t('a11y.large'), onclick: function () { CL.theme.set('text', on ? 'normal' : 'large'); CL.app.render(); } }, h('span', { class: 'knob' }));
+    return h('section', { class: 'card c3' }, [
+      h('h2', { text: t('set.a11y') }), h('p', { class: 'muted', text: t('a11y.hint') }),
+      U.field(t('a11y.colors'), sel),
+      h('div', { class: 'row static' }, [h('span', { class: 'row-main', text: t('a11y.large') }), sw])
+    ]);
+  }
+
   CL.views.settings = function (root) {
     var st = S.get(), meta = S.meta();
     root.appendChild(U.head(t('set.title')));
 
     /* язык */
-    var lang = U.select([{ v: 'auto', l: t('set.auto') }, { v: 'ru', l: 'Русский' }, { v: 'en', l: 'English' }], meta.lang || 'auto');
-    lang.addEventListener('change', function () { meta.lang = lang.value; S.saveMeta(); CL.app.applyLang(); CL.app.render(); });
+    var lang = U.select([{ v: 'auto', l: t('set.auto') }].concat(CL.i18n.LANGS.map(function (o) { return { v: o.code, l: o.name }; })), meta.lang || 'auto');
+    lang.addEventListener('change', function () { U.keepFields('#view', function () { meta.lang = lang.value; S.saveMeta(); CL.app.applyLang(); CL.app.render(); }); });
     var langCard = h('section', { class: 'card c1' }, [h('h2', { text: t('set.language') }), U.field(t('set.language'), lang)]);
 
     /* защита */
@@ -284,10 +317,10 @@
       file
     ]);
 
-    var about = h('section', { class: 'card c5' }, [h('h2', { text: t('set.about') }), h('p', { class: 'muted', text: t('set.version', { v: CL.version }) })]);
+    var about = h('section', { class: 'card c5' }, [h('h2', { text: t('set.about') }), h('p', { class: 'muted', text: t('set.version', { v: CL.version }) }), h('p', {}, [h('a', { href: 'privacy.html', target: '_blank', rel: 'noopener', text: t('set.privacy') })])]);
 
     var list = h('div', { class: 'folds' });
-    [accountCard(), ecoCard(), langCard, prot, tabsCard(), data, about].forEach(function (c) { list.appendChild(fold(c)); });
+    [accountCard(), ecoCard(), appearanceCard(), a11yCard(), langCard, prot, tabsCard(), data, about].forEach(function (c) { list.appendChild(fold(c)); });
     root.appendChild(list);
   };
 })();

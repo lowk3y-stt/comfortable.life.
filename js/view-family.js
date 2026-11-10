@@ -1,4 +1,4 @@
-/* Экран «Семья»: участники (только зарегистрированные), приглашение по ссылке, 6-значному коду или ID. */
+/* Экран «Семья»: участники (только зарегистрированные), приглашение по ссылке или 6-значному коду. */
 (function () {
   'use strict';
   var CL = window.CL, U = CL.ui, L = CL.logic, h = U.h, t = U.t;
@@ -23,10 +23,15 @@
     return h('div', { class: 'member static' }, [
       h('span', { class: 'avatar', style: 'background:' + colorOf(m.id), 'aria-hidden': 'true', text: (m.name || '?').charAt(0).toUpperCase() }),
       h('span', { class: 'member-name' }, [
-        h('b', { text: (m.name || '?') + (m.surname ? ' ' + m.surname : '') }),
+        h('b', { text: L.aliasOf(m.id) || ((m.name || '?') + (m.surname ? ' ' + m.surname : '')) }),
+        L.aliasOf(m.id) ? h('small', { class: 'muted', text: (m.name || '') + (m.surname ? ' ' + m.surname : '') }) : null,
         sub ? h('small', { class: 'muted', text: sub }) : null,
         m.fp ? h('small', { class: 'muted fp', title: t('fam.fpHint'), text: t('fam.fp', { f: m.fp }) }) : null
       ]),
+      !mine ? U.iconBtn('edit', t('fam.rename'), function () {
+        var inp = h('input', { type: 'text', maxlength: 40, value: L.aliasOf(m.id), placeholder: (m.name || '') + (m.surname ? ' ' + m.surname : '') });
+        U.modal({ title: t('fam.rename'), body: [h('p', { class: 'muted', text: t('fam.renameHint') }), U.field(t('fam.aliasName'), inp)], submitLabel: t('common.save'), onSubmit: function () { L.setAlias(m.id, inp.value); CL.app.render(); } });
+      }, 'quiet') : null,
       m.pending ? h('span', { class: 'badge', text: t('fam.pending') }) : null,
       mine ? h('span', { class: 'badge', text: t('family.you') }) : null,
       owner ? h('span', { class: 'badge', text: t('acc.owner') }) : null,
@@ -51,7 +56,7 @@
     return card;
   }
 
-  /* способы добавить человека: ссылка, код, ID */
+  /* способы добавить человека: ссылка и код */
   function addCard(a, fam, err) {
     var card = h('section', { class: 'card c2' }, [h('h2', { text: t('fam.addTitle') }), h('p', { class: 'muted', text: t('fam.addText') })]);
     if (fam.code) {
@@ -69,20 +74,6 @@
       var renew = U.btn(t('fam.newCode'), 'ghost', function () { busy(renew, function () { return CL.account.newCode(); }).then(function () { CL.app.render(); }, function (e) { show(err, e); }); });
       card.appendChild(h('div', { class: 'btn-row' }, [U.btn(t('fam.copyCode'), 'soft', function () { copy(fam.code); }), renew]));
     }
-    var idIn = h('input', { type: 'text', placeholder: 'CL-XXXX-XXXX', autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false' });
-    var add = U.btn(t('acc.add'), 'soft', function () {
-      err.textContent = '';
-      if (!idIn.value.trim()) return;
-      busy(add, function () { return CL.account.find(idIn.value); }).then(function (f) {
-        if (f.id === a.aid) { err.textContent = t('acc.err.self'); return; }
-        U.confirm(t('acc.addAsk', { n: f.name, id: CL.account.pretty(f.id), m: f.mail }), t('acc.add')).then(function (yes) {
-          if (!yes) return;
-          CL.account.invite(f.id).then(function () { idIn.value = ''; U.toast(t('acc.invited', { n: f.name })); }, function (e) { show(err, e); });
-        });
-      }, function (e) { show(err, e); });
-    });
-    card.appendChild(U.field(t('acc.addById'), idIn));
-    card.appendChild(h('div', { class: 'btn-row' }, [add]));
     return card;
   }
 
@@ -98,6 +89,7 @@
 
   CL.views.family = function (root) {
     root.appendChild(U.head(t('family.title')));
+    var nc = U.notifCard(); if (nc) root.appendChild(nc);
     var a = CL.sync.acct();
 
     if (!CL.sync.serverUrl()) { root.appendChild(U.empty(t('fam.noServer'))); return; }

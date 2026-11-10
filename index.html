@@ -8,6 +8,7 @@
   <meta name="theme-color" content="#F4EFE0" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#131A16" media="(prefers-color-scheme: dark)">
   <meta name="color-scheme" content="light dark">
+  <script>(function(){try{var v=JSON.parse(localStorage.getItem("cl_ui")||"{}"),r=document.documentElement,d=v.theme==="dark"||((!v.theme||v.theme==="auto")&&window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches);r.setAttribute("data-scheme",d?"dark":"light");if(v.a11y&&v.a11y!=="none")r.setAttribute("data-a11y",v.a11y);if(v.text==="large")r.setAttribute("data-text","large")}catch(e){}})();</script>
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Comfortable life">
@@ -34,7 +35,13 @@
 
   <script src="config.js"></script>
   <script src="js/i18n.js"></script>
+  <script src="js/i18n-ext.js"></script>
+<script src="js/lang-es.js"></script>
+<script src="js/lang-fr.js"></script>
+<script src="js/lang-it.js"></script>
+<script src="js/lang-zh.js"></script>
   <script src="js/store.js"></script>
+  <script src="js/theme.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/logic.js"></script>
   <script src="js/e2e.js"></script>

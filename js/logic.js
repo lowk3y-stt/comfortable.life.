@@ -16,7 +16,10 @@
   function myId() { var a = CL.sync && CL.sync.acct(); return a ? a.aid : ''; }
   /* члены семьи (с сервера) и имя автора записи; для своих записей пусто */
   function members() { var sy = CL.sync && CL.sync.cfg(); return (sy && sy.fam && sy.fam.members) || []; }
-  function memberName(id) { var m = members().filter(function (x) { return x.id === id; })[0]; return m ? m.name : ''; }
+  /* своё имя участника (видно только на этом телефоне) важнее настоящего */
+  function aliasOf(id) { var a = st().alias; return (a && a[id]) || ''; }
+  function setAlias(id, name) { var s = st(); s.alias = s.alias || {}; name = String(name || '').trim().slice(0, 40); if (name) s.alias[id] = name; else delete s.alias[id]; save(); }
+  function memberName(id) { var a = aliasOf(id); if (a) return a; var m = members().filter(function (x) { return x.id === id; })[0]; return m ? m.name : ''; }
   function authorName(it) { return it.shared && it.by && it.by !== myId() ? (memberName(it.by) || '') : ''; }
   /* можно ли менять пометку «семейное»: только автору (или если автор неизвестен) */
   function ownShared(it) { return !it.by || it.by === myId(); }
@@ -56,6 +59,15 @@
     save(); touched.forEach(remote); return s;
   }
 
+  function saveScene(o) {
+    var s = o.id ? find(st().scenes, o.id) : null;
+    if (!s) { s = { id: uid(), actions: {} }; st().scenes.push(s); }
+    s.name = String(o.name || '').trim().slice(0, 40) || t('home.addScene');
+    s.actions = o.actions || {};
+    s.u = Date.now(); save(); return s;
+  }
+  function removeScene(id) { var ok = remove(st().scenes, id); if (ok) save(); return ok; }
+
   /* ---------- заметки ---------- */
   function notes() {
     return st().notes.slice().sort(function (a, b) {
@@ -69,11 +81,29 @@
   }
   function updateNote(id, o) {
     var n = find(st().notes, id); if (!n) return;
-    n.title = o.title; n.text = o.text; n.pinned = !!o.pinned; n.ts = Date.now();
+    n.title = o.title; n.text = o.text; n.pinned = !!o.pinned; n.ts = Date.now(); if (n.shared) n.lu = myId();
     if (o.shared !== undefined && ownShared(n)) { if (o.shared) { n.shared = true; n.by = n.by || myId(); } else { delete n.shared; delete n.by; } }
     save();
   }
-  function toggleNote(id) { var n = find(st().notes, id); if (!n) return; n.done = !n.done; n.ts = Date.now(); save(); return n; }
+  function toggleNote(id) { var n = find(st().notes, id); if (!n) return; n.done = !n.done; n.ts = Date.now(); if (n.shared) n.lu = myId(); save(); return n; }
+  function respond(id, text) {
+    var n = find(st().notes, id); text = String(text || '').trim().slice(0, 200);
+    if (!n || !n.shared || !text) return null;
+    var me = myId();
+    n.resp = (n.resp || []).filter(function (r) { return r.by !== me; });
+    n.resp.push({ by: me, text: text, ts: Date.now() });
+    n.lu = me; save(); return n;
+  }
+  function unrespond(id) {
+    var n = find(st().notes, id); if (!n || !n.resp) return;
+    var me = myId(); n.resp = n.resp.filter(function (r) { return r.by !== me; });
+    if (!n.resp.length) delete n.resp;
+    n.lu = me; save();
+  }
+  function myResponse(n) { var me = myId(); return (n.resp || []).filter(function (r) { return r.by === me; })[0] || null; }
+  function responderName(r) { return r.by === myId() ? t('family.you') : (memberName(r.by) || '?'); }
+  function notifs() { return (st().notif || []).filter(function (x) { return !x.read; }); }
+  function readNotifs() { (st().notif || []).forEach(function (x) { x.read = true; }); save(); }
   function deleteNote(id) { remove(st().notes, id); save(); }
 
   /* ---------- календарь ---------- */
@@ -92,6 +122,7 @@
   }
   function updateEvent(id, o) {
     var e = find(st().events, id); if (!e) return;
+    if (e.shared) e.lu = myId();
     e.title = o.title; e.date = o.date; e.time = o.time || ''; e.end = o.time && o.end ? o.end : '';
     if (o.shared !== undefined && ownShared(e)) { if (o.shared) { e.shared = true; e.by = e.by || myId(); } else { delete e.shared; delete e.by; } }
     save();
@@ -214,8 +245,8 @@
   }
 
   CL.logic = {
-    find: find, remove: remove, clamp: clamp, nameOf: nameOf, myId: myId, members: members, memberName: memberName, authorName: authorName, ownShared: ownShared, LEVEL: LEVEL, range: range,
-    devices: devices, scenes: scenes, setDevice: setDevice, setLevel: setLevel, runScene: runScene,
+    find: find, remove: remove, clamp: clamp, nameOf: nameOf, myId: myId, members: members, memberName: memberName, authorName: authorName, aliasOf: aliasOf, setAlias: setAlias, ownShared: ownShared, LEVEL: LEVEL, range: range,
+    devices: devices, scenes: scenes, setDevice: setDevice, setLevel: setLevel, respond: respond, unrespond: unrespond, myResponse: myResponse, responderName: responderName, notifs: notifs, readNotifs: readNotifs, runScene: runScene, saveScene: saveScene, removeScene: removeScene,
     notes: notes, addNote: addNote, updateNote: updateNote, toggleNote: toggleNote, deleteNote: deleteNote,
     events: events, eventsOn: eventsOn, timeText: timeText, addEvent: addEvent, updateEvent: updateEvent, deleteEvent: deleteEvent,
     addWorkout: addWorkout, deleteWorkout: deleteWorkout, weekStats: weekStats, minutesPerDay: minutesPerDay, lastDays: lastDays,

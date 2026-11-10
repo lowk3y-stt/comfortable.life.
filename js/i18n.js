@@ -419,7 +419,7 @@
   "sync.diag.nodb": "Сервер работает, но к нему не привязана база. В Cloudflare: Worker → Settings → Bindings → Add → D1 database, имя переменной строго DB.",
   "sync.diag.noschema": "База привязана, но в ней нет таблиц. В Cloudflare: D1 → ваша база → Console → вставьте cloudflare/schema.sql → Execute.",
   "sync.diag.up": "Сервер отвечает, но запрос не прошёл. Попробуйте ещё раз через минуту.",
-  "sync.diag.ok": "Сервер отвечает, база подключена. Можно регистрироваться.", "sync.check": "Проверить связь с сервером", "pw.show": "Показать пароль", "pw.hide": "Скрыть пароль",
+  "sync.diag.ok": "Сервер отвечает, база подключена. Можно регистрироваться.", "sync.check": "Проверить связь с сервером", "ya.viewOnly": "только просмотр", "fam.rename": "Изменить имя", "fam.renameHint": "Имя видите только вы, у других участников оно не изменится. Например: Мама.", "fam.aliasName": "Как подписать", "ya.share": "Общий дом для всей семьи", "ya.shareHint": "Устройства этого аккаунта Яндекса увидят и смогут включать все участники семьи. Выбор устройств делаете только вы.", "ya.viaText": "Устройства берутся из аккаунта Яндекса участника: {n}. Выбирает их он.", "ya.raw": "Что видит Яндекс", "ya.rawHint": "Список устройств аккаунта Яндекса и их возможностей. Если нужного устройства тут нет, Яндекс не отдаёт его сторонним приложениям.", "pw.show": "Показать пароль", "pw.hide": "Скрыть пароль",
   "kb.done": "Готово", "kb.go": "Перейти", "kb.search": "Найти", "kb.send": "Отправить", "kb.next": "Далее", "kb.return": "ввод",
   "norm.min": "Минимум", "norm.ok": "Норма выполнена", "norm.left": "До нормы: {n}", "norm.glasses": "стаканов", "norm.steps": "шагов", "norm.perWeek": "в неделю",
   "kb.title": "Экранная клавиатура", "kb.hide": "Скрыть клавиатуру", "kb.backspace": "Стереть", "kb.ok": "Готово", "kb.shift": "Заглавные", "kb.symbols": "Цифры и знаки", "kb.language": "Язык ввода", "kb.space": "Пробел", "kb.enter": "Ввод",
@@ -602,7 +602,7 @@
   "sync.diag.nodb": "The server works but has no database bound. In Cloudflare: Worker → Settings → Bindings → Add → D1 database, variable name exactly DB.",
   "sync.diag.noschema": "The database is bound but has no tables. In Cloudflare: D1 → your database → Console → paste cloudflare/schema.sql → Execute.",
   "sync.diag.up": "The server responds but the request failed. Try again in a minute.",
-  "sync.diag.ok": "The server responds and the database is connected. You can sign up.", "sync.check": "Check server connection", "pw.show": "Show password", "pw.hide": "Hide password",
+  "sync.diag.ok": "The server responds and the database is connected. You can sign up.", "sync.check": "Check server connection", "ya.viewOnly": "view only", "fam.rename": "Rename", "fam.renameHint": "Only you see this name; other members are not affected. For example: Mom.", "fam.aliasName": "Display name", "ya.share": "Shared home for the whole family", "ya.shareHint": "All family members will see and control the devices of this Yandex account. Only you choose the devices.", "ya.viaText": "Devices come from the Yandex account of a family member: {n}. They choose the devices.", "ya.raw": "What Yandex sees", "ya.rawHint": "Devices of your Yandex account and their capabilities. If a device is missing here, Yandex does not share it with third-party apps.", "pw.show": "Show password", "pw.hide": "Hide password",
   "kb.done": "Done", "kb.go": "Go", "kb.search": "Search", "kb.send": "Send", "kb.next": "Next", "kb.return": "return",
   "norm.min": "Minimum", "norm.ok": "Goal reached", "norm.left": "To go: {n}", "norm.glasses": "glasses", "norm.steps": "steps", "norm.perWeek": "per week",
   "kb.title": "On-screen keyboard", "kb.hide": "Hide keyboard", "kb.backspace": "Backspace", "kb.ok": "Done", "kb.shift": "Shift", "kb.symbols": "Numbers and symbols", "kb.language": "Input language", "kb.space": "Space", "kb.enter": "Enter",
@@ -672,9 +672,12 @@
 
   var lang = 'ru';
 
+  var LANGS = [{ code: 'ru', name: 'Русский' }, { code: 'en', name: 'English' }, { code: 'es', name: 'Español' }, { code: 'fr', name: 'Français' }, { code: 'it', name: 'Italiano' }, { code: 'zh', name: '中文' }];
+  var LOCALES = { ru: 'ru-RU', en: 'en-US', es: 'es-ES', fr: 'fr-FR', it: 'it-IT', zh: 'zh-CN' };
   function detect() {
     var l = (navigator.languages && navigator.languages[0]) || navigator.language || 'en';
-    return /^ru/i.test(l) ? 'ru' : 'en';
+    var c = String(l).slice(0, 2).toLowerCase();
+    return LOCALES[c] ? c : 'en';
   }
   function t(k, v) {
     var s = (D[lang] && D[lang][k]) || D.en[k] || k;
@@ -686,9 +689,11 @@
   }
   function setLang(l) { lang = D[l] ? l : 'en'; document.documentElement.lang = lang; }
 
+  function add(l, o) { D[l] = Object.assign(D[l] || {}, o); }
+
   CL.i18n = {
-    t: t, all: all, detect: detect, setLang: setLang, dict: D,
+    t: t, all: all, detect: detect, setLang: setLang, dict: D, add: add, LANGS: LANGS,
     getLang: function () { return lang; },
-    locale: function () { return lang === 'ru' ? 'ru-RU' : 'en-US'; }
+    locale: function () { return LOCALES[lang] || 'en-US'; }
   };
 })();

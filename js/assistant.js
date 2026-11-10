@@ -85,6 +85,25 @@
     if (!raw) return '';
     var st = S.get();
 
+    /* создание сценария */
+    if ((m = /(?:^|\s)(?:создай|создать|добавь|сделай|create|make|add|new)\s+(?:новый\s+|новую\s+|new\s+)?(?:сценари\S*|сцену|scene)\s*(.*)$/i.exec(raw))) {
+      var rest = m[1].trim(), vi = rest.search(/(?:^|[\s:,])(?:включ\S*|выключ\S*|отключ\S*|turn\s+(?:on|off)|switch\s+(?:on|off))/i);
+      var sname = (vi > 0 ? rest.slice(0, vi) : '').replace(/^[\s«"“]+|[\s:,—\-»"”]+$/g, '').replace(/^(?:с названием|called|named)\s+/i, '');
+      var acts = {}, body = vi >= 0 ? rest.slice(vi) : '';
+      body.split(/\s*(?:,|;|\sи\s|\sand\s|\sthen\s|\sпотом\s)\s*/i).forEach(function (part) {
+        var ps = norm(part), on = null;
+        if (/(^|\s)(выключ|отключ)|turn\s+off|switch\s+off/.test(ps)) on = 'off';
+        else if (/(^|\s)включ|turn\s+on|switch\s+on/.test(ps)) on = 'on';
+        if (!on) return;
+        var f = bestMatch(part, L.devices(), anyName);
+        if (f.length) acts[f[0].id] = on;
+      });
+      if (!sname) return t('as.sceneCreateName');
+      if (!Object.keys(acts).length) return t('as.sceneCreateNone');
+      var sc = L.saveScene({ name: sname.charAt(0).toUpperCase() + sname.slice(1), actions: acts });
+      return t('as.sceneCreated', { n: sc.name, c: Object.keys(acts).length });
+    }
+
     /* время и дата */
     if (has(s, /(который час|сколько (?:сейчас )?времени|what time is it|what's the time|current time)/)) {
       return t('as.time', { n: U.fmt(new Date(), { hour: '2-digit', minute: '2-digit' }) });

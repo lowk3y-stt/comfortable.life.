@@ -130,11 +130,53 @@
     });
     return cur;
   }
+  /* отклики на заметку: у каждого участника остаётся его самый свежий */
+  function joinResp(win, other) {
+    var a = win.resp || [], b = other.resp || [];
+    if (!a.length && !b.length) return win;
+    var by = {};
+    a.concat(b).forEach(function (r) { if (!by[r.by] || r.ts > by[r.by].ts) by[r.by] = r; });
+    var out = JSON.parse(JSON.stringify(win));
+    out.resp = Object.keys(by).map(function (k) { return by[k]; }).sort(function (x, y) { return x.ts - y.ts; });
+    return out;
+  }
+  function notifyChanges(old, items) {
+    var me = (acct() || {}).aid, s = st(), fresh = [], horizon = Date.now() - 3 * 86400000;
+    Object.keys(items).forEach(function (k) {
+      var e = items[k], d = e.d, o = old[k];
+      if (!d || e.u < horizon) return;
+      var type = '', who = d.lu || d.by;
+      if (!o) { type = 'new'; who = d.by || who; }
+      else if (hash(strip(o)) !== hash(d)) {
+        var oc = (o.resp || []).length, nc = (d.resp || []).length, last = (d.resp || []).slice().sort(function (x, y) { return y.ts - x.ts; })[0];
+        if (nc > oc || (last && !(o.resp || []).some(function (r) { return r.by === last.by && r.text === last.text; }))) { type = 'resp'; who = last && last.by; }
+        else type = 'edit';
+      }
+      if (!type || !who || who === me) return;
+      fresh.push({ id: Math.random().toString(36).slice(2, 10), k: k, kind: k.indexOf('notes:') === 0 ? 'note' : 'event', type: type, by: who, title: d.title || (d.text || '').slice(0, 40), ts: Date.now(), read: false });
+    });
+    if (!fresh.length) return;
+    s.notif = fresh.concat(s.notif || []).slice(0, 50);
+    var L = CL.logic, T = CL.i18n.t;
+    var msg = fresh.length === 1
+      ? T('nt.' + fresh[0].kind + '.' + fresh[0].type, { n: L.memberName(fresh[0].by) || '?', t: fresh[0].title })
+      : T('nt.many', { c: fresh.length });
+    if (CL.ui) CL.ui.toast(msg);
+    try {
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted' && document.hidden) new Notification('Comfortable life', { body: msg, icon: 'icons/icon-192.png' });
+    } catch (e) {}
+  }
   function merge(cur, sy, remote) {
     var items = {}, tomb = {};
     Object.keys(cur).forEach(function (k) { items[k] = { u: sy.stamps[k].u, d: strip(cur[k]) }; });
     var ri = remote.items || {};
-    Object.keys(ri).forEach(function (k) { if (!items[k] || ri[k].u > items[k].u) items[k] = ri[k]; });
+    Object.keys(ri).forEach(function (k) {
+      var mine = items[k];
+      if (!mine || ri[k].u > mine.u) {
+        items[k] = ri[k];
+        if (mine && mine.d && ri[k].d) items[k] = { u: ri[k].u, d: joinResp(ri[k].d, mine.d) };
+      } else if (mine.d && ri[k].d) mine.d = joinResp(mine.d, ri[k].d);
+    });
     [sy.tomb || {}, remote.tomb || {}].forEach(function (m) { Object.keys(m).forEach(function (k) { tomb[k] = Math.max(tomb[k] || 0, m[k]); }); });
     var cut = Date.now() - 90 * 86400000;
     Object.keys(tomb).forEach(function (k) {
@@ -148,7 +190,8 @@
     return canon(Object.keys(cur).map(function (k) { return [k, strip(cur[k])]; }));
   }
   function apply(sy, m) {
-    var s = st(), before = snapshot();
+    var s = st(), before = snapshot(), old = sharedItems(), oldCopy = {};
+    Object.keys(old).forEach(function (k) { oldCopy[k] = strip(old[k]); });
     COLS.forEach(function (col) {
       var mine = s[col].filter(function (it) { return !isShared(col, it); });
       var list = [];
@@ -158,6 +201,7 @@
     sy.stamps = {};
     Object.keys(m.items).forEach(function (k) { sy.stamps[k] = { h: hash(m.items[k].d), u: m.items[k].u }; });
     sy.tomb = m.tomb;
+    notifyChanges(oldCopy, m.items);
     return before !== snapshot();
   }
 
@@ -172,6 +216,24 @@
       if (m.pub && !m.fp && !m._fp) { m._fp = true; CL.e2e.fingerprint(m.pub).then(function (f) { m.fp = f; notify(); }); }
     });
   }
+  /* общий дом: главный аккаунт умного дома и список устройств лежат в шифрованном блоке семьи */
+  function applyHome(sy) {
+    var s = st(), hm = sy.home;
+    if (!hm) { if (s.homeAid) { delete s.homeAid; } return; }
+    s.homeAid = hm.aid;
+    if (hm.aid !== sy.aid) {
+      var np = Array.isArray(hm.pick) ? hm.pick.slice() : [], was = canon(s.yaPick || null);
+      s.yaPick = np;
+      if (was !== canon(np) && CL.yandex) setTimeout(function () { CL.yandex.refresh(true).catch(function () {}); }, 0);
+    }
+  }
+  function setHome(obj) {
+    var sy = cfg(); if (!sy) return;
+    sy.home = obj ? { aid: sy.aid, pick: (obj.pick || []).slice(), u: Date.now() } : { aid: '', pick: [], u: Date.now() };
+    if (!obj) delete st().homeAid; else st().homeAid = sy.aid;
+    S.save(); run();
+  }
+  function homeAid() { var sy = cfg(); return sy && sy.home && sy.home.aid || ''; }
   function notify() { listeners.forEach(function (f) { try { f(status); } catch (e) {} }); }
 
   /* ---------- ключи семьи ---------- */
@@ -217,17 +279,20 @@
       return famKey(sy, r).then(function (fk) {
         var p = r.ct ? decrypt({ iv: r.iv, ct: r.ct }, fk.key) : Promise.resolve(null);
         return p.then(function (rem) {
-          var remote = { items: (rem && rem.items) || {}, tomb: (rem && rem.tomb) || {}, people: (rem && rem.people) || {} };
+          var remote = { items: (rem && rem.items) || {}, tomb: (rem && rem.tomb) || {}, people: (rem && rem.people) || {}, home: (rem && rem.home) || null };
           var cur = stampLocal(sy);
           var m = merge(cur, sy, remote);
           var people = Object.assign({}, remote.people), mine = myPerson();
           if (!people[sy.aid] || canon(people[sy.aid].d) !== canon(mine)) people[sy.aid] = { u: Date.now(), d: mine };
           m.people = people;
+          var home = (sy.home && (!remote.home || sy.home.u > remote.home.u)) ? sy.home : remote.home;
+          m.home = home || null; sy.home = home || null;
           var changed = apply(sy, m);
           sy.people = people;
           overlay();
-          var out = { items: m.items, tomb: m.tomb, people: people };
-          var push = canon(out) !== canon({ items: remote.items, tomb: remote.tomb, people: remote.people });
+          applyHome(sy);
+          var out = { items: m.items, tomb: m.tomb, people: people, home: m.home };
+          var push = canon(out) !== canon({ items: remote.items, tomb: remote.tomb, people: remote.people, home: remote.home });
           var done = function () {
             if (changed) { applying = true; try { S.save(); } finally { applying = false; } } else S.flush();
           };
@@ -243,7 +308,7 @@
             if (members.some(function (x) { return !x.pub; })) throw { error: 'bad' };
             var raw2 = CL.e2e.newFamilyKey();
             return CL.e2e.aesFromRaw(raw2).then(function (k2) {
-              return Promise.all([encrypt({ v: 1, items: out.items, tomb: out.tomb, people: out.people }, k2), wrapForMembers(members, raw2)]).then(function (z) {
+              return Promise.all([encrypt({ v: 1, items: out.items, tomb: out.tomb, people: out.people, home: out.home }, k2), wrapForMembers(members, raw2)]).then(function (z) {
                 return api({ op: 'keys', mode: 'rotate', kver: r.kver + 1, rev: r.rev, iv: z[0].iv, ct: z[0].ct, wraps: z[1] }).then(function (kr) {
                   if (!kr.ok) { if (kr.error === 'conflict' && tries < 3) return cycle(tries + 1); throw kr; }
                   fkCache = null; sy.rev = r.rev + 1; sy.kver = r.kver + 1; done(); again = true;
@@ -252,7 +317,7 @@
             });
           }
           if (!push) { done(); return approve(); }
-          return encrypt({ v: 1, items: out.items, tomb: out.tomb, people: out.people }, fk.key).then(function (box) {
+          return encrypt({ v: 1, items: out.items, tomb: out.tomb, people: out.people, home: out.home }, fk.key).then(function (box) {
             return api({ op: 'put', rev: r.rev, kver: r.kver, iv: box.iv, ct: box.ct }).then(function (pr) {
               if (pr.ok) { sy.rev = pr.rev; done(); return approve(); }
               if (pr.error === 'conflict' && tries < 3) return cycle(tries + 1);
@@ -273,7 +338,7 @@
     if (e.code === 'url') return t('sync.err.url');
     if (e.code === 'crypto') return t('sync.err.crypto');
     if (e.code && /^(email|password|mismatch|self|profile|birth|gender)$/.test(e.code)) return t('acc.err.' + e.code);
-    var known = /^(email|taken|login|locked|code|wait|mailquota|notfound|member|session|self|limit|owner|noinvite|auth|exists|profile|birth|gender|badcode|infam|noai|aiquota|noyandex|reckey|kver|big|bad)$/;
+    var known = /^(nomail|email|taken|login|locked|code|wait|mailquota|notfound|member|session|self|limit|owner|noinvite|auth|exists|profile|birth|gender|badcode|infam|noai|aiquota|noyandex|reckey|kver|big|bad)$/;
     if (e.error === 'mailsend') return t('acc.err.mailsend', { d: e.detail || '' });
     if (e.error === 'nourl') return t('sync.err.url');
     if (e.error === 'yandex') return t('ya.err');
@@ -353,7 +418,7 @@
   });
 
   CL.sync = {
-    acct: acct, cfg: cfg, call: call, ping: ping, check: check, explain: explain, api: api, serverUrl: serverUrl, message: message, passHash: passHash,
+    acct: acct, cfg: cfg, call: call, ping: ping, check: check, setHome: setHome, homeAid: homeAid, explain: explain, api: api, serverUrl: serverUrl, message: message, passHash: passHash,
     attachFamily: attachFamily, detachFamily: detachFamily, signedOutLocally: signedOutLocally, overlay: overlay,
     start: start, stop: stop, run: run,
     status: function () { return status; },

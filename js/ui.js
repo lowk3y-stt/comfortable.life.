@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var CL = (window.CL = window.CL || {});
-  CL.version = '0.6.3';
+  CL.version = '0.7.0';
   CL.views = CL.views || {};
   CL.actions = CL.actions || {};
 
@@ -38,6 +38,7 @@
     climate: 'M10 14.5V5a2 2 0 0 1 4 0v9.5a4 4 0 1 1-4 0zM12 9v8',
     speaker: 'M7 3h10v18H7zM12 7.5h.01M12 17a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
     plug: 'M9 3v5M15 3v5M6 8h12v3a6 6 0 0 1-12 0zM12 17v4',
+    sensor: 'M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0z',
     water: 'M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z',
     moon: 'M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z',
     steps: 'M8 4c2 0 3 1.5 3 4s-1 3-1 5-1.5 3-3 3-2-1.5-2-3c0-3 0-9 3-9z|M16 8c2 0 3 1 3 3.5s-1 3-1 5.5-1 3-2.5 3S13 19 13 17c0-3 0-9 3-9z',
@@ -125,6 +126,22 @@
   function field(label, control, hint) {
     if (control && control.tagName === 'INPUT' && control.type === 'password') control = passWrap(control);
     return h('label', { class: 'field' }, [h('span', { class: 'field-l', text: label }), control, hint ? h('span', { class: 'field-h', text: hint }) : null]);
+  }
+  /* перерисовка без потери введённого: значения полей запоминаются и возвращаются */
+  function keepFields(scope, fn) {
+    var root = typeof scope === 'string' ? document.querySelector(scope) : scope;
+    var fields = function (r) { return r ? Array.prototype.slice.call(r.querySelectorAll('input, textarea, select')) : []; };
+    var snap = fields(root).map(function (el) { return { t: el.type, a: el.getAttribute('autocomplete') || '', c: el.type === 'checkbox' || el.type === 'radio', v: el.type === 'checkbox' || el.type === 'radio' ? el.checked : el.value }; });
+    var res = fn();
+    var list = fields(typeof scope === 'string' ? document.querySelector(scope) : root), used = {};
+    list.forEach(function (el, i) {
+      var k = -1;
+      for (var j = 0; j < snap.length; j++) { if (!used[j] && snap[j].t === el.type && snap[j].a === (el.getAttribute('autocomplete') || '') && (j >= i || k < 0)) { k = j; if (j >= i) break; } }
+      if (k < 0 || el.type === 'file') return;
+      used[k] = true;
+      if (snap[k].c) el.checked = snap[k].v; else if (el.tagName !== 'SELECT' || Array.prototype.some.call(el.options, function (o) { return o.value === snap[k].v; })) el.value = snap[k].v;
+    });
+    return res;
   }
   function select(options, value) {
     var s = h('select', null, options.map(function (o) { return h('option', { value: o.v, text: o.l }); }));
@@ -242,6 +259,21 @@
     return { close: close, el: dlg };
   }
 
+  function notifCard() {
+    var list = CL.logic && CL.logic.notifs ? CL.logic.notifs() : [];
+    if (!list.length) return null;
+    var items = list.slice(0, 8).map(function (x) {
+      return h('li', {}, [h('span', { text: t('nt.' + x.kind + '.' + x.type, { n: CL.logic.memberName(x.by) || '?', t: x.title }) })]);
+    });
+    return h('section', { class: 'block notif-card' }, [
+      h('h2', { text: t('nt.title') }),
+      h('ul', { class: 'notif-list' }, items),
+      h('div', { class: 'btn-row' }, [btn(t('nt.read'), 'ghost', function () { CL.logic.readNotifs(); CL.app.render(); })].concat(
+        (typeof Notification !== 'undefined' && Notification.permission === 'default')
+          ? [btn(t('nt.allow'), 'ghost', function () { try { Notification.requestPermission().then(function () { CL.app.render(); }); } catch (e) {} })] : []))
+    ]);
+  }
+
   function confirmBox(msg, okLabel, danger) {
     return new Promise(function (resolve) {
       var answered = false;
@@ -285,7 +317,7 @@
   }
 
   CL.ui = {
-    passWrap: passWrap,
+    notifCard: notifCard, passWrap: passWrap, keepFields: keepFields,
     t: t, h: h, icon: icon, leaf: leaf, field: field, select: select, btn: btn, iconBtn: iconBtn, head: head, empty: empty, cap: cap, sharedChip: sharedChip, normControl: normControl, shareField: shareField,
     fmt: fmt, weekdays: weekdays, toast: toast, modal: modal, confirm: confirmBox, ring: ring, bars: bars
   };

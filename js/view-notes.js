@@ -31,6 +31,27 @@
     });
   }
 
+  function respondDialog(n) {
+    var mine = L.myResponse(n);
+    var inp = h('input', { type: 'text', maxlength: 200, value: mine ? mine.text : '', placeholder: t('notes.respPh'), 'data-autofocus': '1' });
+    U.modal({
+      title: t('notes.respond'), body: [h('p', { class: 'muted', text: t('notes.respHint') }), U.field(t('notes.respText'), inp)], submitLabel: t('notes.respSend'),
+      extra: mine ? [{ label: t('notes.respUndo'), kind: 'danger', onClick: function (close) { L.unrespond(n.id); close(); CL.app.render(); } }] : [],
+      onSubmit: function () { if (!inp.value.trim()) return false; L.respond(n.id, inp.value); CL.app.render(); }
+    });
+  }
+  function respBlock(n) {
+    if (!n.shared) return null;
+    var rs = (n.resp || []).map(function (r) {
+      return h('li', {}, [h('b', { text: L.responderName(r) + ': ' }), h('span', { text: r.text })]);
+    });
+    var mine = L.myResponse(n);
+    return h('div', { class: 'note-resp' }, [
+      rs.length ? h('ul', { class: 'resp-list' }, rs) : null,
+      U.btn(mine ? t('notes.respEdit') : t('notes.respond'), 'ghost', function () { respondDialog(n); })
+    ]);
+  }
+
   function card(n) {
     var first = n.title || n.text.split('\n')[0] || t('notes.untitled');
     var body = n.title ? n.text : n.text.split('\n').slice(1).join('\n');
@@ -41,7 +62,8 @@
         h('span', { class: 'note-top' }, [h('b', { text: first }), n.pinned ? U.icon('pin') : null]),
         body ? h('span', { class: 'note-body', text: body.slice(0, 200) }) : null,
         h('span', { class: 'note-meta' }, [h('small', { text: U.fmt(new Date(n.ts || Date.now()), { day: 'numeric', month: 'short' }) }), U.sharedChip(n)])
-      ])
+      ]),
+      respBlock(n)
     ]);
   }
 

@@ -111,17 +111,17 @@
   /* ---------- аккаунт ---------- */
   /* регистрация: всё создаётся здесь; наружу уходят только запертые копии и открытый ключ */
   function createAccount(email, pw, profile) {
-    var MK = rand(32), rk = rand(16), out = { recoveryKey: rkPretty(rkEncode(rk)) }, pair, pkcs8;
-    return Promise.all([passHash(email, pw), kek(email, pw), hkdfKey(MK, 'cl-priv'), hkdfKey(MK, 'cl-prof'), rkKey(rk), rkAuth(rk),
+    var MK = rand(32), out = {}, pair, pkcs8;
+    return Promise.all([passHash(email, pw), kek(email, pw), hkdfKey(MK, 'cl-priv'), hkdfKey(MK, 'cl-prof'),
       sub().generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits'])
     ]).then(function (a) {
-      pair = a[6];
+      pair = a[4];
       return Promise.all([sub().exportKey('pkcs8', pair.privateKey), sub().exportKey('jwk', pair.publicKey)]).then(function (e) {
         pkcs8 = e[0];
         var pub = pubOf(e[1]);
-        return Promise.all([aesEnc(a[1], MK), aesEnc(a[4], MK), aesEnc(a[2], new Uint8Array(pkcs8)), encJson(a[3], profile), importPriv(pkcs8)]).then(function (w) {
-          out.payload = { ph: a[0], recAuth: a[5], pub: pub, wPw: w[0], wRec: w[1], wPriv: w[2], prof: w[3] };
-          out.local = { priv: w[4], kProf: a[3], pub: pub };
+        return Promise.all([aesEnc(a[1], MK), aesEnc(a[2], new Uint8Array(pkcs8)), encJson(a[3], profile), importPriv(pkcs8)]).then(function (w) {
+          out.payload = { ph: a[0], pub: pub, wPw: w[0], wPriv: w[1], prof: w[2] };
+          out.local = { priv: w[3], kProf: a[3], pub: pub };
           return out;
         });
       });

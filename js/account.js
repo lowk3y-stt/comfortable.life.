@@ -1,6 +1,4 @@
-/* Comfortable life — аккаунт: регистрация по почте, профиль, вход, личный ID, семья (ссылка, код, приглашение по ID).
-   Пароль на сервер не отправляется, ключи шифрования создаются на телефоне (js/e2e.js). Восстановление пароля: ключ восстановления.
-   Семья создаётся сама при регистрации; вступить в чужую можно за пару минут по ссылке или 6-значному коду. */
+/* Аккаунт: регистрация и вход по почте, профиль, семья (ссылка и код), смена пароля по коду из письма. */
 (function () {
   'use strict';
   var CL = (window.CL = window.CL || {});
@@ -62,8 +60,8 @@
     return CL.e2e.createAccount(email, pw, p).then(function (m) {
       return sync().call(Object.assign({ op: 'register', email: email, name: p.name }, m.payload)).then(function (r) {
         if (!r.ok) throw r;
-        if (r.needCode) { pendingReg = { email: email, local: m.local, profile: p }; return { needCode: true, recoveryKey: m.recoveryKey }; }
-        return takeSession(r, email, m.local, p).then(function () { return { needCode: false, recoveryKey: m.recoveryKey }; });
+        if (r.needCode) { pendingReg = { email: email, local: m.local, profile: p }; return { needCode: true }; }
+        return takeSession(r, email, m.local, p).then(function () { return { needCode: false }; });
       });
     });
   }
@@ -87,27 +85,23 @@
       return CL.e2e.openAccount(email, pw, r.mat).then(function (o) { return takeSession(r, email, o.local, o.profile); });
     });
   }
-  /* восстановление пароля по ключу восстановления (письма не нужны) */
-  function recover(email, key, pw) {
+  /* забытый пароль: 1) код на почту, 2) код + новый пароль; ключи создаются заново на этом телефоне */
+  function resetStart(email) {
+    email = String(email).trim().toLowerCase();
+    if (!emailOk(email)) return Promise.reject({ code: 'email' });
+    return sync().call({ op: 'reset_code', email: email }).then(function (r) { if (!r.ok) throw r; return r; });
+  }
+  function resetFinish(email, code, pw) {
     email = String(email).trim().toLowerCase();
     if (!emailOk(email)) return Promise.reject({ code: 'email' });
     if (String(pw).length < 8) return Promise.reject({ code: 'password' });
-    return CL.e2e.recoverAuth(key).then(function (recAuth) {
-      return sync().call({ op: 'rec_get', email: email, recAuth: recAuth }).then(function (r) {
+    var nc = needCrypto(); if (nc) return Promise.reject(nc);
+    var old = st().profile || {}, p = { surname: old.surname || '', name: old.name || '', birth: old.birth || '', gender: old.gender || '' };
+    return CL.e2e.createAccount(email, pw, p).then(function (m) {
+      var pl = m.payload;
+      return sync().call({ op: 'reset_do', email: email, code: String(code).trim(), ph: pl.ph, pub: pl.pub, wPw: pl.wPw, wPriv: pl.wPriv, prof: pl.prof }).then(function (r) {
         if (!r.ok) throw r;
-        return CL.e2e.recoverRewrap(email, key, r.wRec, pw).then(function (n) {
-          return sync().call({ op: 'rec_set', email: email, recAuth: recAuth, ph: n.ph, wPw: n.wPw });
-        });
-      });
-    }).then(function (r) { if (!r.ok) throw r; });
-  }
-  /* новый ключ восстановления: нужен пароль, чтобы открыть главный ключ */
-  function newRecoveryKey(pw) {
-    var a = sync().acct(); if (!a) return Promise.reject({ error: 'session' });
-    return CL.e2e.passHash(a.email, pw).then(function (ph) { return sync().call({ op: 'login', email: a.email, ph: ph }); }).then(function (r) {
-      if (!r.ok) throw r;
-      return CL.e2e.unlockMaster(a.email, pw, r.mat).then(CL.e2e.newRecovery).then(function (n) {
-        return sync().call({ op: 'rec_new', recAuth: n.recAuth, wRec: n.wRec }).then(function (x) { if (!x.ok) throw x; return n.recoveryKey; });
+        return takeSession(r, email, m.local, p);
       });
     });
   }
@@ -225,7 +219,7 @@
 
   CL.account = {
     pretty: pretty, register: register, verify: verify, login: login, logout: logout, setProfile: setProfile,
-    recover: recover, newRecoveryKey: newRecoveryKey, refresh: refresh,
+    resetStart: resetStart, resetFinish: resetFinish, refresh: refresh,
     captureLink: captureLink, pendingJoin: readJoin, clearJoin: function () { setJoin(''); }, linkFor: linkFor, afterSignIn: afterSignIn,
     join: join, newCode: newCode, find: find, invite: invite, accept: accept, decline: decline, leaveFamily: leaveFamily, removeMember: removeMember,
     info: function () { return sync().acct(); }, lastRefresh: 0
