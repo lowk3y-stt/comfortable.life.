@@ -48,6 +48,11 @@
   /* пароль на сервер не отправляется: уходит только результат PBKDF2 (см. js/e2e.js) */
   function passHash(email, password) { return CL.e2e.passHash(email, password); }
 
+  /* прокси в Яндекс Облаке может вернуть ответ завёрнутым: {statusCode, headers, body} */
+  function unwrap(d) {
+    if (d && typeof d === 'object' && typeof d.statusCode === 'number' && typeof d.body === 'string') { try { return JSON.parse(d.body); } catch (e) { return null; } }
+    return d;
+  }
   /* ---------- связь с сервером ---------- */
   function call(body, ms) {
     var url = serverUrl();
@@ -59,7 +64,7 @@
     return fetch(url, {
       method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, redirect: 'follow',
       body: JSON.stringify(payload), signal: ctl ? ctl.signal : undefined
-    }).then(function (r) { clearTimeout(to); return r.json(); }, function (e) { clearTimeout(to); throw e; }).then(function (r) {
+    }).then(function (r) { clearTimeout(to); return r.json(); }, function (e) { clearTimeout(to); throw e; }).then(unwrap).then(function (r) {
       if (r && r.error === 'session' && acct()) { signedOutLocally(); }
       return r;
     });
@@ -68,7 +73,7 @@
   function ping() {
     var url = serverUrl(), ctl = window.AbortController ? new AbortController() : null;
     var to = setTimeout(function () { if (ctl) ctl.abort(); }, 15000);
-    return fetch(url, { method: 'GET', signal: ctl ? ctl.signal : undefined }).then(function (r) { clearTimeout(to); return r.json(); }).then(function (d) { return d || {}; }, function () { clearTimeout(to); return null; });
+    return fetch(url, { method: 'GET', signal: ctl ? ctl.signal : undefined }).then(function (r) { clearTimeout(to); return r.json(); }).then(unwrap).then(function (d) { return d || {}; }, function () { clearTimeout(to); return null; });
   }
   function explain(e) {
     var plain = !e || !(e.error || e.code);
