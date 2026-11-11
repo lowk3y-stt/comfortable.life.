@@ -242,7 +242,7 @@
 
   function start() {
     stop();
-    poll = setInterval(function () { if (!document.hidden && connected()) refresh(true); }, 30000);
+    poll = setInterval(function () { if (!document.hidden && connected() && Date.now() - (CL.lastTouch || Date.now()) < 120000) refresh(true); }, 45000);
   }
   function stop() { clearInterval(poll); poll = null; }
 

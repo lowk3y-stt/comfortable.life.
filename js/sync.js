@@ -395,6 +395,9 @@
     });
   }
 
+  var lastTouch = Date.now();
+  ['touchstart', 'pointerdown', 'keydown', 'scroll'].forEach(function (ev) { window.addEventListener(ev, function () { lastTouch = CL.lastTouch = Date.now(); }, { passive: true, capture: true }); });
+
   function start() {
     stop();
     if (!acct()) return;
@@ -409,6 +412,7 @@
       if (document.hidden || !acct()) return;
       var sy = cfg(), now = Date.now();
       var every = sy && sy.fam && sy.fam.members && sy.fam.members.length > 1 ? PING_FAMILY : PING_ALONE;
+      if (now - lastTouch > 60000) every = Math.max(every, 45000);
       if (sy && !running && now - lastPing >= every - 500) {
         lastPing = now;
         api({ op: 'rev' }).then(function (r) { var c = cfg(); if (r.ok && c && (r.rev !== c.rev || r.kver !== c.kver || r.pend > 0 || r.need || !r.wrap)) run(); }, function () {});
